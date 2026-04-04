@@ -86,6 +86,9 @@ bool Validate_va() {
   X_t<T> Formula_x_1;
   Y_t<T> y_1 = Y_t<T>::Random();
 
+  // Show the seed
+  std::cout << "Seed for Y_({1}): \n" << y_1 << "\n\n";
+
   // Populate y_x
   va_F_x(x_values, y_x);
 

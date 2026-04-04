@@ -64,6 +64,9 @@ bool Validate_vt() {
   Y_t<T> Formula_y_1;
   X_t<T> x_1 = X_t<T>::Random();
 
+  // Show the seed
+  std::cout << "Seed for X^({1}): \n" << x_1 << "\n\n";
+
   // Populate y_x
   vt_F_x(x_values, y_x);
 
