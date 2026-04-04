@@ -1,0 +1,10 @@
+^C:\USERS\ZHENS\ONEDRIVE\DESKTOP\AD VALIDATOR\AD_FORMULAE_VALIDATOR\BUILD\CMAKEFILES\9262CDC27FF1A6A28E8F6DDA3B9467BD\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" "-SC:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator" "-BC:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build" --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/ADValidator.sln"
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\1\fd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\1\va.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\1\vt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\2\vasa.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\2\vast.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\2\vava.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\2\vavt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\2\vtva.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\2\vtvt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vasasa.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vasast.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vastsa.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vastst.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vtvasa.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vtvast.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vtvtva.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\3\vtvtvt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\lighthouse\4\vtvtvtvt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\zhens\OneDrive\Desktop\AD Validator\AD_Formulae_Validator\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{8CD18DB8-8DE4-305F-B355-FA8CF201FA39}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
