@@ -1,14 +1,18 @@
 #include "1/va.h"
 #include "1/vt.h"
 #include <iostream>
+#include <ctime>
 
 
 int main() {
+  // Seed random
+  std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
   std::cout << "=== Testing First Derivative (Adjoint Mode) ===\n";
-  bool va_pass = Validate_va<double>();
+  bool va_pass = Validate_va<double, 2>();
   
   std::cout << "\n=== Testing First Derivative (Tangent Mode) ===\n";
-  bool vt_pass = Validate_vt<double>();
+  bool vt_pass = Validate_vt<double, 3>();
   
   std::cout << "\n=== Summary ===\n";
   std::cout << "Adjoint validation: " << (va_pass ? "PASSED" : "FAILED") << "\n";

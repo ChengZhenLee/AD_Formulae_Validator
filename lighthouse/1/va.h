@@ -2,6 +2,7 @@
 
 #include "F.h"
 #include "ad.h"
+#include <cmath>
 #include <limits>
 
 
@@ -36,9 +37,12 @@ void va_F_x(const X_t<T>& x_values, Y_X_t<T>& y_x) {
 }	
 
 
-template<typename T>
-void AD_F_x(const X_t<T>& x_values, Y_t<T>& y_1, X_t<T>& x_1) {
-  X_t<A_t<T,m>> x; Y_t<A_t<T,m>> y;
+template<typename T, int K>
+void AD_F_x(const X_t<T>& x_values, Eigen::Matrix<T, K, m>& y_1, 
+  Y_t<T>& y_values, Eigen::Matrix<T, K, n>& x_1) {
+  X_t<A_t<T, K>> x; 
+  Y_t<A_t<T, K>> y;
+
   for (int i=0;i<n;++i) {
     x(i).value()=x_values(i);
     x(i).register_input(); 
@@ -48,15 +52,23 @@ void AD_F_x(const X_t<T>& x_values, Y_t<T>& y_1, X_t<T>& x_1) {
 
   A_t<T,m>::tape::init_adjoints();
 
-  for (int j=0;j<m;++j) 
-    y(j).adjoint(j)=y_1(j);
+  for (int u = 0; u < K; u++) {
+    for (int j = 0; j < m; j++) {
+      y(j).adjoint(u) = y_1(u, j);
+    }
+  }
 
   A_t<T,m>::tape::interpret();
 
-  for (int i=0;i<n;++i) {
-    x_1(i) = 0;
-    for (int j=0;j<m;j++) {
-      x_1(i)+=x(i).adjoint(j);
+  // Extract primal value
+  for (int j = 0; j < m; j++) {
+    y_values(j) = y(j).value();
+  }
+
+  // Extract X_{(1)}
+  for (int u = 0; u < K; u++) {
+    for (int i = 0; i < n; i++) {
+      x_1(u, i) = x(i).adjoint(u);
     }
   }
 
@@ -64,27 +76,37 @@ void AD_F_x(const X_t<T>& x_values, Y_t<T>& y_1, X_t<T>& x_1) {
 }
 
 
-template<typename T>
-void Formula_F_x(const X_t<T>& x_values, Y_X_t<T>& y_x, Y_t<T>& y_1, X_t<T>& x_1) {
-  for (int i = 0; i < n; i++) {
-    x_1(i) = 0;
-    for (int j = 0; j < m; j++) {
-      x_1(i) += y_x(j)(i) * y_1(j);
+template<typename T, int K>
+void Formula_F_x(const X_t<T>& x_values, Y_X_t<T>& y_x, Eigen::Matrix<T, K, m>& y_1, 
+  Y_t<T>& y_values, Eigen::Matrix<T, K, n>& x_1) {
+
+  // y = f(x)
+  F(x_values, y_values);
+
+  // X_{(1)} = F' * Y_{(1)}
+  for (int u = 0; u < K; u++) {
+    for (int i = 0; i < n; i++) {
+      x_1(u, i) = 0;
+      for (int j = 0; j < m; j++) {
+        x_1(u, i) += y_x(j)(i) * y_1(u, j);
+      }
     }
   }
 }
 
 
-template<typename T>
+template<typename T, int K>
 bool Validate_va() {
   X_t<T> x_values = X_t<T>::Random();
 
   T tol = std::sqrt(std::numeric_limits<T>::epsilon());
 
+  Y_t<T> AD_y_values;
+  Y_t<T> Formula_y_values;
   Y_X_t<T> y_x;
-  X_t<T> AD_x_1;
-  X_t<T> Formula_x_1;
-  Y_t<T> y_1 = Y_t<T>::Random();
+  Eigen::Matrix<T, K, n> AD_x_1;
+  Eigen::Matrix<T, K, n> Formula_x_1;
+  Eigen::Matrix<T, K, m> y_1 = Eigen::Matrix<T, K, m>::Random().cwiseAbs();
 
   // Show the seed
   std::cout << "Seed for Y_({1}): \n" << y_1 << "\n\n";
@@ -93,22 +115,43 @@ bool Validate_va() {
   va_F_x(x_values, y_x);
 
   // Run the AD version
-  AD_F_x(x_values, y_1, AD_x_1);
+  AD_F_x(x_values, y_1, AD_y_values, AD_x_1);
 
   // Run the Formula version
-  Formula_F_x(x_values,y_x, y_1, Formula_x_1);
+  Formula_F_x(x_values,y_x, y_1, Formula_y_values, Formula_x_1);
 
   // Print the results
+  std::cout << "AD y\n" << AD_y_values << "\n\n";
   std::cout << "AD X_{(1)}\n" << AD_x_1 << "\n\n";
-  std::cout << "Formula X_{(1)\n" << Formula_x_1 << "\n\n";
+
+  std::cout << "Formula y\n" << Formula_y_values << "\n\n";
+  std::cout << "Formula X_{(1)}\n" << Formula_x_1 << "\n\n";
 
   // Validate
-  for (int i = 0; i < n; i++) {
-    T diff = std::abs(Formula_x_1(i) - AD_x_1(i));
+  T diff;
+  T maxDiff = 0;
+  for (int j = 0; j < m; j++) {
+    diff = std::abs(Formula_y_values(j) - AD_y_values(j));
     if (diff > tol) {
-      std::cout << "Validation failed at index " << i << " Diff: " << diff << "\n";
+      std::cout << "Validation for y Failed\n";
+      std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
       return false;
     }
   }
+
+  maxDiff = std::max(maxDiff, diff);
+
+  for (int i = 0; i < n; i++) {
+    diff = std::abs(Formula_x_1(i) - AD_x_1(i));
+    if (diff > tol) {
+      std::cout << "Validation for X_{(1)} Failed\n";
+      std::cout << "Validation failed at index " << i << " Diff: " << diff << "\n";
+      return false;
+    }
+
+    maxDiff = std::max(maxDiff, diff);
+  }
+  std::cout << "Maximum difference:\n" << maxDiff << "\n";
+
   return true;
 }

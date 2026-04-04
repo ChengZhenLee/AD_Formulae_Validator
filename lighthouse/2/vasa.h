@@ -5,7 +5,7 @@
 #include "ad_types.h"
 
 template<typename T>
-void F_xx(const X_t<T>& x_values, Y_XX_t<T>& y_xx) {
+void vasa_F_xx(const X_t<T>& x_values, Y_XX_t<T>& y_xx) {
   for (int m1=0;m1<m;++m1) {
     // activate x and y
     X_t<A_t<A_t<T,n>,1>> x; Y_t<A_t<A_t<T,n>,1>> y;
