@@ -96,7 +96,7 @@ void AD_F_xx(const X_t<T>& x_values,
 
 
 template<typename T, int V1, int V2>
-void Formula_F_xx(Y_X_t<T>& y_x, Y_XX_t<T>& y_xx,
+void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
   const X_t<T>& x_values, 
   const Eigen::Matrix<T, n, V1>& x_1, const Eigen::Matrix<T, n, V2>& x_2, 
   const Eigen::Vector<Eigen::Matrix<T, V1, V2>, n>& x_1_2, 

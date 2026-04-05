@@ -1,6 +1,7 @@
 #include "1/va.h"
 #include "1/vt.h"
 #include "2/vtvt.h"
+#include "2/vtva.h"
 #include <iostream>
 #include <ctime>
 
@@ -17,11 +18,15 @@ int main() {
 
   std::cout << "\n=== Testing Second Derivative (Tangent over Tangent Mode) ===\n";
   bool vtvt_pass = Validate_vtvt<double, 3, 3>();
+
+  std::cout << "\n=== Testing Second Derivative (Tangent over Adjoint Mode) ===\n";
+  bool vtva_pass = Validate_vtva<double, 2, 3>();
   
   std::cout << "\n=== Summary ===\n";
   std::cout << "Adjoint validation: " << (va_pass ? "PASSED" : "FAILED") << "\n";
   std::cout << "Tangent validation: " << (vt_pass ? "PASSED" : "FAILED") << "\n";
   std::cout << "Tangent over Tangent validation: " << (vtvt_pass ? "PASSED" : "FAILED") << "\n";
+  std::cout << "Tangent over Adjoint validation: " << (vtva_pass ? "PASSED" : "FAILED") << "\n";
 
   return 0;
 }
