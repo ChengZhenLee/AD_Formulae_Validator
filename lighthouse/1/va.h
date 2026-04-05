@@ -97,18 +97,22 @@ void Formula_F_x(const X_t<T>& x_values, Y_X_t<T>& y_x, Eigen::Matrix<T, K, m>& 
 
 template<typename T, int K>
 bool Validate_va() {
-  X_t<T> x_values = X_t<T>::Random();
-
   T tol = std::sqrt(std::numeric_limits<T>::epsilon());
 
+  Y_X_t<T> y_x;
+
+  // Outputs
   Y_t<T> AD_y_values;
   Y_t<T> Formula_y_values;
-  Y_X_t<T> y_x;
   Eigen::Matrix<T, K, n> AD_x_1;
   Eigen::Matrix<T, K, n> Formula_x_1;
+
+  // Inputs
+  X_t<T> x_values = X_t<T>::Random();
   Eigen::Matrix<T, K, m> y_1 = Eigen::Matrix<T, K, m>::Random().cwiseAbs();
 
   // Show the seed
+  std::cout << "Seed for x: \n" << x_values << "\n\n";
   std::cout << "Seed for Y_({1}): \n" << y_1 << "\n\n";
 
   // Populate y_x
@@ -132,6 +136,7 @@ bool Validate_va() {
   T maxDiff = 0;
   for (int j = 0; j < m; j++) {
     diff = std::abs(Formula_y_values(j) - AD_y_values(j));
+    maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
       std::cout << "Validation for y Failed\n";
       std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
@@ -139,10 +144,9 @@ bool Validate_va() {
     }
   }
 
-  maxDiff = std::max(maxDiff, diff);
-
   for (int i = 0; i < n; i++) {
     diff = std::abs(Formula_x_1(i) - AD_x_1(i));
+    maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
       std::cout << "Validation for X_{(1)} Failed\n";
       std::cout << "Validation failed at index " << i << " Diff: " << diff << "\n";

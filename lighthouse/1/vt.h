@@ -25,16 +25,16 @@ void vt_F_x(const X_t<T>& x_values, Y_X_t<T>& y_x) {
 }	
 
 
-template<typename T, int K>
-void AD_F_x(const X_t<T>& x_values, const Eigen::Matrix<T, n, K>& x_1, 
-  Y_t<T>& y_values, Eigen::Matrix<T, m, K>& y_1) {
-  X_t<T_t<T, K>> x;
-  Y_t<T_t<T, K>> y;
+template<typename T, int V>
+void AD_F_x(const X_t<T>& x_values, const Eigen::Matrix<T, n, V>& x_1, 
+  Y_t<T>& y_values, Eigen::Matrix<T, m, V>& y_1) {
+  X_t<T_t<T, V>> x;
+  Y_t<T_t<T, V>> y;
   
   for (int i = 0; i < n; ++i) {
     x(i).value() = x_values(i);
-    for (int k = 0; k < K; ++k) {
-      x(i).tangent(k) = x_1(i, k);
+    for (int v = 0; v < V; ++v) {
+      x(i).tangent(v) = x_1(i, v);
     }
   }
 
@@ -43,24 +43,24 @@ void AD_F_x(const X_t<T>& x_values, const Eigen::Matrix<T, n, K>& x_1,
   for (int j = 0; j < m; ++j) {
     // Extract primal values
     y_values(j) = y(j).value();
-    for (int k = 0; k < K; ++k) {
+    for (int v = 0; v < V; ++v) {
       // Extract Y_{(1)}
-      y_1(j, k) = y(j).tangent(k);
+      y_1(j, v) = y(j).tangent(v);
     }
   }
 }
 
 
-template<typename T, int K>
-void Formula_F_x(X_t<T>& x_values, Y_X_t<T>& y_x, const Eigen::Matrix<T, n, K>& x_1, 
-  Y_t<T>& y_values, Eigen::Matrix<T, m, K>& y_1) {
+template<typename T, int V>
+void Formula_F_x(X_t<T>& x_values, Y_X_t<T>& y_x, const Eigen::Matrix<T, n, V>& x_1, 
+  Y_t<T>& y_values, Eigen::Matrix<T, m, V>& y_1) {
   
   // y = f(x);
   F(x_values, y_values);
 
   // Y_{(1)} = F' * X_{(1)}
   for (int j = 0; j < m; j++) {
-    for (int v1 = 0; v1 < K; v1++) {
+    for (int v1 = 0; v1 < V; v1++) {
       y_1(j, v1) = 0;
       for (int i = 0; i < n; i++) {
         y_1(j, v1) += y_x(j)(i) * x_1(i, v1);
@@ -70,20 +70,25 @@ void Formula_F_x(X_t<T>& x_values, Y_X_t<T>& y_x, const Eigen::Matrix<T, n, K>& 
 }
 
 
-template <typename T, int K>
+template <typename T, int V>
 bool Validate_vt() {
-  X_t<T> x_values = X_t<T>::Random();
 
   T tol = std::sqrt(std::numeric_limits<T>::epsilon());
 
+  Y_X_t<T> y_x;
+
+  // Outputs
   Y_t<T> AD_y_values;
   Y_t<T> Formula_y_values;
-  Y_X_t<T> y_x;
-  Eigen::Matrix<T, m, K> AD_y_1;
-  Eigen::Matrix<T, m, K> Formula_y_1;
-  Eigen::Matrix<T, n, K> x_1 = Eigen::Matrix<T, n, K>::Random().cwiseAbs();
+  Eigen::Matrix<T, m, V> AD_y_1;
+  Eigen::Matrix<T, m, V> Formula_y_1;
 
-  // Show the seed
+  // Inputs
+  X_t<T> x_values = X_t<T>::Random();
+  Eigen::Matrix<T, n, V> x_1 = Eigen::Matrix<T, n, V>::Random().cwiseAbs();
+
+  // Show the seeds
+  std::cout << "Seed for x: \n" << x_values << "\n\n";
   std::cout << "Seed for X^({1}): \n" << x_1 << "\n\n";
 
   // Populate y_x
@@ -107,22 +112,20 @@ bool Validate_vt() {
   T maxDiff = 0;
   for (int j = 0; j < m; j++) {
     diff = std::abs(Formula_y_values(j) - AD_y_values(j));
+    maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
       std::cout << "Validation for y Failed\n";
       std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
       return false;
     }
 
-    maxDiff = std::max(maxDiff, diff);
-
     diff = std::abs(Formula_y_1(j) - AD_y_1(j));
+    maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
       std::cout << "Validation for Y^{(1)} Failed\n";
       std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
       return false;
     }
-
-    maxDiff = std::max(maxDiff, diff);
   }
   std::cout << "Maximum difference:\n" << maxDiff << "\n";
 

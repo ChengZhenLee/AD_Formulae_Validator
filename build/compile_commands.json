@@ -1,115 +1,115 @@
 [
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\main.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\main.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\main.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\main.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/main.cpp",
   "output": "CMakeFiles/ADValidator.dir/main.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\1\\fd.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\1\\fd.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\1\\fd.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\1\\fd.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/1/fd.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/1/fd.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\1\\va.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\1\\va.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\1\\va.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\1\\va.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/1/va.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/1/va.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\1\\vt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\1\\vt.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\1\\vt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\1\\vt.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/1/vt.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/1/vt.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vasa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vasa.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vasa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vasa.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/2/vasa.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/2/vasa.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vast.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vast.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vast.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vast.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/2/vast.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/2/vast.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vava.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vava.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vava.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vava.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/2/vava.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/2/vava.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vavt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vavt.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vavt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vavt.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/2/vavt.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/2/vavt.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vtva.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vtva.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vtva.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vtva.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/2/vtva.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/2/vtva.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vtvt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vtvt.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\2\\vtvt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\2\\vtvt.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/2/vtvt.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/2/vtvt.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vasasa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vasasa.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vasasa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vasasa.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vasasa.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vasasa.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vasast.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vasast.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vasast.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vasast.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vasast.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vasast.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vastsa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vastsa.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vastsa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vastsa.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vastsa.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vastsa.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vastst.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vastst.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vastst.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vastst.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vastst.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vastst.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvasa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvasa.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvasa.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvasa.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vtvasa.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vtvasa.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvast.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvast.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvast.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvast.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vtvast.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vtvast.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvtva.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvtva.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvtva.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvtva.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vtvtva.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vtvtva.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvtvt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvtvt.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\3\\vtvtvt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\3\\vtvtvt.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/3/vtvtvt.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/3/vtvtvt.cpp.obj"
 },
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\4\\vtvtvtvt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\4\\vtvtvtvt.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe  @CMakeFiles/ADValidator.dir/includes_CXX.rsp -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\lighthouse\\4\\vtvtvtvt.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\lighthouse\\4\\vtvtvtvt.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/lighthouse/4/vtvtvtvt.cpp",
   "output": "CMakeFiles/ADValidator.dir/lighthouse/4/vtvtvtvt.cpp.obj"
 }
