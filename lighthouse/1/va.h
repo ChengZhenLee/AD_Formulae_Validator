@@ -96,7 +96,7 @@ void Formula_F_x(const X_t<T>& x_values, Y_X_t<T>& y_x, Eigen::Matrix<T, K, m>& 
 
 
 template<typename T, int K>
-bool Validate_va() {
+bool Validate_va(std::ofstream& out) {
   T tol = std::sqrt(std::numeric_limits<T>::epsilon());
 
   Y_X_t<T> y_x;
@@ -111,9 +111,11 @@ bool Validate_va() {
   X_t<T> x_values = X_t<T>::Random();
   Eigen::Matrix<T, K, m> y_1 = Eigen::Matrix<T, K, m>::Random().cwiseAbs();
 
+  out << "\n=== Testing First Derivative (Adjoint Mode) ===\n";
+
   // Show the seed
-  std::cout << "Seed for x: \n" << x_values << "\n\n";
-  std::cout << "Seed for Y_({1}): \n" << y_1 << "\n\n";
+  out << "Seed for x: \n" << x_values << "\n\n";
+  out << "Seed for Y_({1}): \n" << y_1 << "\n\n";
 
   // Populate y_x
   va_F_x(x_values, y_x);
@@ -124,12 +126,14 @@ bool Validate_va() {
   // Run the Formula version
   Formula_F_x(x_values,y_x, y_1, Formula_y_values, Formula_x_1);
 
-  // Print the results
-  std::cout << "AD y\n" << AD_y_values << "\n\n";
-  std::cout << "AD X_{(1)}\n" << AD_x_1 << "\n\n";
+  out << "=== Testing First Derivative (Adjoint Mode) ===\n";
 
-  std::cout << "Formula y\n" << Formula_y_values << "\n\n";
-  std::cout << "Formula X_{(1)}\n" << Formula_x_1 << "\n\n";
+  // Print the results
+  out << "AD y\n" << AD_y_values << "\n\n";
+  out << "AD X_{(1)}\n" << AD_x_1 << "\n\n";
+
+  out << "Formula y\n" << Formula_y_values << "\n\n";
+  out << "Formula X_{(1)}\n" << Formula_x_1 << "\n\n";
 
   // Validate
   T diff;
@@ -138,8 +142,8 @@ bool Validate_va() {
     diff = std::abs(Formula_y_values(j) - AD_y_values(j));
     maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
-      std::cout << "Validation for y Failed\n";
-      std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
+      out << "Validation for y Failed\n";
+      out << "Validation failed at index " << j << " Diff: " << diff << "\n";
       return false;
     }
   }
@@ -148,14 +152,14 @@ bool Validate_va() {
     diff = std::abs(Formula_x_1(i) - AD_x_1(i));
     maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
-      std::cout << "Validation for X_{(1)} Failed\n";
-      std::cout << "Validation failed at index " << i << " Diff: " << diff << "\n";
+      out << "Validation for X_{(1)} Failed\n";
+      out << "Validation failed at index " << i << " Diff: " << diff << "\n";
       return false;
     }
 
     maxDiff = std::max(maxDiff, diff);
   }
-  std::cout << "Maximum difference:\n" << maxDiff << "\n";
+  out << "Maximum difference:\n" << maxDiff << "\n";
 
   return true;
 }

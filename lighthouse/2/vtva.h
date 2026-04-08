@@ -161,7 +161,7 @@ void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
 
 
 template<typename T, int U1, int V2>
-bool Validate_vtva() {
+bool Validate_vtva(std::ofstream& out) {
   T tol = std::pow(std::numeric_limits<T>::epsilon(), 1.0 / 4.0);
 
   Y_X_t<T> y_x;
@@ -186,11 +186,13 @@ bool Validate_vtva() {
     y_1_2(u1) = Eigen::Matrix<T, m, V2>::Random().cwiseAbs();
   }
 
+  out << "\n=== Testing Second Derivative (Tangent over Adjoint Mode) ===\n";
+
   // Show the seeds
-  std::cout << "Seed for x: \n" << x_values << "\n\n";
-  std::cout << "Seed for Y_({1}): \n" << y_1 << "\n\n";
-  std::cout << "Seed for X^({2}): \n" << x_2 << "\n\n";
-  std::cout << "Seed for Y_{(1)}^{(2)}: (nested matrices not printed)\n\n";
+  out << "Seed for x: \n" << x_values << "\n\n";
+  out << "Seed for Y_({1}): \n" << y_1 << "\n\n";
+  out << "Seed for X^({2}): \n" << x_2 << "\n\n";
+  out << "Seed for Y_{(1)}^{(2)}: (nested matrices not printed)\n\n";
 
   // Populate y_x and y_xx
   vtva_F_xx(x_values, y_x, y_xx);
@@ -212,8 +214,8 @@ bool Validate_vtva() {
     diff = std::abs(AD_y_values(j) - Formula_y_values(j));
     maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
-      std::cout << "Validation for y Failed\n";
-      std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
+      out << "Validation for y Failed\n";
+      out << "Validation failed at index " << j << " Diff: " << diff << "\n";
       return false;
     }
     // Compare Y^{(2)}
@@ -221,8 +223,8 @@ bool Validate_vtva() {
       diff = std::abs(AD_y_2(j, v2) - Formula_y_2(j, v2));
       maxDiff = std::max(maxDiff, diff);
       if (diff > tol) {
-        std::cout << "Validation for Y^{(2)} Failed\n";
-        std::cout << "Validation failed at index " << j << "," << v2 << " Diff: " << diff << "\n";
+        out << "Validation for Y^{(2)} Failed\n";
+        out << "Validation failed at index " << j << "," << v2 << " Diff: " << diff << "\n";
         return false;
       }
     }
@@ -234,8 +236,8 @@ bool Validate_vtva() {
       diff = std::abs(AD_x_1(u1, i) - Formula_x_1(u1, i));
       maxDiff = std::max(maxDiff, diff);
       if (diff > tol) {
-        std::cout << "Validation for X_{(1)} Failed\n";
-        std::cout << "Validation failed at index " << u1 << "," << i << " Diff: " << diff << "\n";
+        out << "Validation for X_{(1)} Failed\n";
+        out << "Validation failed at index " << u1 << "," << i << " Diff: " << diff << "\n";
         return false;
       }
 
@@ -244,14 +246,14 @@ bool Validate_vtva() {
         diff = std::abs(AD_x_1_2(u1)(i, v2) - Formula_x_1_2(u1)(i, v2));
         maxDiff = std::max(maxDiff, diff);
         if (diff > tol) {
-          std::cout << "Validation for X_{(1)}^{(2)} Failed\n";
-          std::cout << "Validation failed at index " << u1 << "," << i << "," << v2 << " Diff: " << diff << "\n";
+          out << "Validation for X_{(1)}^{(2)} Failed\n";
+          out << "Validation failed at index " << u1 << "," << i << "," << v2 << " Diff: " << diff << "\n";
           return false;
         }
       }
     }
   }
-  std::cout << "Maximum difference:\n" << maxDiff << "\n";
+  out << "Maximum difference:\n" << maxDiff << "\n";
 
   return true;
 }

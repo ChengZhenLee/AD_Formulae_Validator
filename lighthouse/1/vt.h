@@ -71,7 +71,7 @@ void Formula_F_x(X_t<T>& x_values, Y_X_t<T>& y_x, const Eigen::Matrix<T, n, V>& 
 
 
 template <typename T, int V>
-bool Validate_vt() {
+bool Validate_vt(std::ofstream& out) {
 
   T tol = std::sqrt(std::numeric_limits<T>::epsilon());
 
@@ -87,9 +87,11 @@ bool Validate_vt() {
   X_t<T> x_values = X_t<T>::Random();
   Eigen::Matrix<T, n, V> x_1 = Eigen::Matrix<T, n, V>::Random().cwiseAbs();
 
+  out << "\n=== Testing First Derivative (Tangent Mode) ===\n";
+
   // Show the seeds
-  std::cout << "Seed for x: \n" << x_values << "\n\n";
-  std::cout << "Seed for X^({1}): \n" << x_1 << "\n\n";
+  out << "Seed for x: \n" << x_values << "\n\n";
+  out << "Seed for X^({1}): \n" << x_1 << "\n\n";
 
   // Populate y_x
   vt_F_x(x_values, y_x);
@@ -101,11 +103,11 @@ bool Validate_vt() {
   Formula_F_x(x_values, y_x, x_1, Formula_y_values, Formula_y_1);
 
   // Print the results
-  std::cout << "AD y\n" << AD_y_values << "\n\n";
-  std::cout << "AD Y^{(1)}\n" << AD_y_1 << "\n\n";
+  out << "AD y\n" << AD_y_values << "\n\n";
+  out << "AD Y^{(1)}\n" << AD_y_1 << "\n\n";
 
-  std::cout << "Formula y\n" << Formula_y_values << "\n\n";
-  std::cout << "Formula Y^{(1)}\n" << Formula_y_1 << "\n\n";
+  out << "Formula y\n" << Formula_y_values << "\n\n";
+  out << "Formula Y^{(1)}\n" << Formula_y_1 << "\n\n";
 
   // Validate
   T diff;
@@ -114,20 +116,20 @@ bool Validate_vt() {
     diff = std::abs(Formula_y_values(j) - AD_y_values(j));
     maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
-      std::cout << "Validation for y Failed\n";
-      std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
+      out << "Validation for y Failed\n";
+      out << "Validation failed at index " << j << " Diff: " << diff << "\n";
       return false;
     }
 
     diff = std::abs(Formula_y_1(j) - AD_y_1(j));
     maxDiff = std::max(maxDiff, diff);
     if (diff > tol) {
-      std::cout << "Validation for Y^{(1)} Failed\n";
-      std::cout << "Validation failed at index " << j << " Diff: " << diff << "\n";
+      out << "Validation for Y^{(1)} Failed\n";
+      out << "Validation failed at index " << j << " Diff: " << diff << "\n";
       return false;
     }
   }
-  std::cout << "Maximum difference:\n" << maxDiff << "\n";
+  out << "Maximum difference:\n" << maxDiff << "\n";
 
   return true;
 }
