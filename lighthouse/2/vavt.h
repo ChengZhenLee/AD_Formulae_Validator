@@ -52,10 +52,11 @@ void AD_F_xx(const X_t<T>& x_values,
   for (int v1 = 0; v1 < V1; v1++) {
     for (int i=0;i<n;++i) {
       x(i).value().value()=x_values(i);
-      x(i).value().register_input();
 
       // set X^{(1)}
       x(i).tangent(v1).value() = x_1(i, v1);
+
+      x(i).value().register_input();
     }
     
     F(x,y);
@@ -152,12 +153,11 @@ void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
         for (int j = 0; j < m; j++) {
           sum += y_x(j)(i) * y_1_2(u2)(j, v1);
         }
-        x_1_2(u2)(i, v1) = sum;
+        x_1_2(u2)(i, v1) += sum;
       }
     }
   }
 }
-
 
 template<typename T, int V1, int U2>
 bool Validate_vavt(std::ofstream& out) {

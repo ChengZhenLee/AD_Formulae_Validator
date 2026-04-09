@@ -1,0 +1,120 @@
+
+=== Testing First Derivative (Adjoint Mode) ===
+Seed for x: 
+-0.640362
+-0.273823
+-0.533861
+
+Seed for Y_({1}): 
+0.0958803  0.112375
+0.0955714  0.661916
+
+=== Testing First Derivative (Adjoint Mode) ===
+AD y
+-0.186941
+  0.11971
+
+AD X_{(1)}
+ -0.026685  0.0134684  0.0069081
+-0.0458164  -0.184852 -0.0948127
+
+Formula y
+-0.186941
+  0.11971
+
+Formula X_{(1)}
+ -0.026685  0.0134684  0.0069081
+-0.0458164  -0.184852 -0.0948127
+
+Maximum difference:
+6.93889e-18
+
+=== Testing First Derivative (Tangent Mode) ===
+Seed for x: 
+-0.250105
+ 0.265951
+ 0.135044
+
+Seed for X^({1}): 
+0.927693  0.92228 0.240237
+0.742968 0.238698 0.688507
+0.954018 0.726035 0.579029
+
+AD y
+-0.125616
+0.0314172
+
+AD Y^{(1)}
+ -1.49112  -1.09471 -0.861447
+ 0.256404  0.157941  0.185275
+
+Formula y
+-0.125616
+0.0314172
+
+Formula Y^{(1)}
+ -1.49112  -1.09471 -0.861447
+ 0.256404  0.157941  0.185275
+
+Maximum difference:
+2.22045e-16
+
+=== Testing Second Derivative (Tangent over Tangent Mode) ===
+Seed for x: 
+  0.50532
+-0.795754
+ 0.109461
+
+Seed for X^({1}): 
+ 0.187367  0.132567  0.539453
+0.0537164  0.891766   0.12849
+0.0888093  0.165053  0.210773
+
+Seed for X^({2}): 
+0.0361008  0.779516  0.959911
+ 0.090049  0.645374  0.316892
+ 0.456282  0.355279  0.384422
+
+Seed for X^{(1, 2)}: (nested matrices not printed)
+
+Maximum difference:
+1.94289e-16
+
+=== Testing Second Derivative (Tangent over Adjoint Mode) ===
+Seed for x: 
+-0.304862
+ 0.754267
+ -0.79948
+
+Seed for Y_({1}): 
+ 0.66584 0.581572
+ 0.59672  0.31541
+
+Seed for X^({2}): 
+ 0.67244 0.345205 0.374716
+0.509399 0.624807 0.467542
+0.177609 0.174325 0.655372
+
+Seed for Y_{(1)}^{(2)}: (nested matrices not printed)
+
+Maximum difference:
+2.67764e-07
+
+=== Testing Second Derivative (Adjoint over Tangent Mode) ===
+Seed for x: 
+-0.970439
+ 0.446395
+-0.901451
+
+Seed for Y_({1}): 
+0.346161
+0.939572
+0.705267
+
+Seed for X^({2}): 
+ 0.82468 0.296291
+
+Seed for Y_{(1)}^{(2)}: (nested matrices not printed)
+
+Validation for X_{(2)} Failed
+Validation failed at index 0,0 Diff: 2.36578

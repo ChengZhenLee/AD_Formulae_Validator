@@ -37,7 +37,7 @@ int main() {
   std::cout << "Tangent over Tangent validation: " << (vtvt_pass ? "PASSED" : "FAILED") << "\n";
   std::cout << "Tangent over Adjoint validation: " << (vtva_pass ? "PASSED" : "FAILED") << "\n";
   std::cout << "Adjoint over Tangent validation: " << (vavt_pass ? "PASSED" : "FAILED") << "\n";
-  std::cout << "You can find the log file at build/validations_results.txt\n";
+  std::cout << "You can find the log file at validations_results.txt\n";
 
   return 0;
 }
