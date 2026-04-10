@@ -58,50 +58,52 @@ void AD_F_xx(const X_t<T>& x_values,
 
       x(i).value().register_input();
     }
+  }
     
-    F(x,y);
+  F(x,y);
 
-    A_t<T,U2>::tape::init_adjoints();
-
+  A_t<T,U2>::tape::init_adjoints();
+  
+  for (int v1 = 0; v1 < V1; v1++) {
     for (int u2 = 0; u2 < U2; u2++) {
       for (int j = 0; j < m; j++) {
         // set Y^{(1)}_{(2)}
         y(j).tangent(v1).adjoint(u2) = y_1_2(u2)(j, v1);
 
-        // set Y_{(2)} (only for the first iteration)
-        if (v1 == 0)
-          y(j).value().adjoint(u2) = y_2(u2, j);
-        else
-          y(j).value().adjoint(u2) = 0;
+        // Set Y_{(2)}
+        y(j).value().adjoint(u2) = y_2(u2, j);
       }
     }
+  }
 
-    A_t<T,U2>::tape::interpret();
+  A_t<T,U2>::tape::interpret();
 
-    // Extract y (only once)
-    if (v1 == 0)
-      for (int j = 0; j < m; j++) {
-        y_values(j) = y(j).value().value();
-      }
-    
-    // Extract Y^{(1)}
-    for (int j = 0; j < m; j++) {
+  // Extract y (only once)
+  for (int j = 0; j < m; j++) {
+    y_values(j) = y(j).value().value();
+  }
+  
+  // Extract Y^{(1)}
+  for (int j = 0; j < m; j++) {
+    for (int v1 = 0; v1 < V1; v1++) {
       y_1(j, v1) = y(j).tangent(v1).value();
     }
+  }
 
-    for (int u2 = 0; u2 < U2; u2++) {
-      for (int i = 0; i < n; i++) {
-        // Extract X_{(2)}
-        x_2(u2, i) += x(i).value().adjoint(u2);
+  for (int u2 = 0; u2 < U2; u2++) {
+    for (int i = 0; i < n; i++) {
+      // Extract X_{(2)}
+      x_2(u2, i) += x(i).value().adjoint(u2);
 
-        // Extract X^{(1)}_{(2)}
+      // Extract X^{(1)}_{(2)}
+      for (int v1 = 0; v1 < V1; v1++) {
         x_1_2(u2)(i, v1) = x(i).tangent(v1).adjoint(u2);
       }
     }
-
-    // reset tape
-    A_t<T,U2>::tape::reset();
   }
+
+  // reset tape
+  A_t<T,U2>::tape::reset();
 }
 
 
