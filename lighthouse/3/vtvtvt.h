@@ -48,7 +48,7 @@ void AD_F_xxx(
   Eigen::Matrix<Eigen::Matrix<T, V2, V3>, m, V1>& y_1_2_3
 ) { 
 
-  X_t<T_t<T_t<T_t<T,n>,n>,n>> x; Y_t<T_t<T_t<T_t<T,n>,n>,n>> y;
+  X_t<T_t<T_t<T_t<T,V3>,V2>,V1>> x; Y_t<T_t<T_t<T_t<T,V3>,V2>,V1>> y;
   for (int i=0;i<n;++i) {
     // set x
     x(i).value().value() = x_values(i);
