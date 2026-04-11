@@ -6,6 +6,7 @@
 #include "2/vava.h"
 #include "3/vtvtvt.h"
 #include "3/vtvtva.h"
+#include "3/vastsa.h"
 #include <iostream>
 #include <ctime>
 
@@ -38,6 +39,8 @@ int main() {
 
   bool vtvtva_pass = Validate_vtvtva<double, 2, 3, 3>(logFile);
 
+  bool vastsa_pass = Validate_vastsa<double, 2>(logFile);
+
   logFile.close();
   
   std::cout << "\n=== Summary ===\n";
@@ -49,6 +52,7 @@ int main() {
   std::cout << "Adjoint over Adjoint validation: " << (vava_pass ? "PASSED" : "FAILED") << "\n";
   std::cout << "Tangent over Tangent over Tangent validation: " << (vtvtvt_pass ? "PASSED" : "FAILED") << "\n";
   std::cout << "Tangent over Tangent over Adjoint validation: " << (vtvtva_pass ? "PASSED" : "FAILED") << "\n";
+  std::cout << "Adjoint over Tangent over Adjoint validation: " << (vastsa_pass ? "PASSED" : "FAILED") << "\n";
   std::cout << "You can find the log file at validations_results.txt\n";
 
   return 0;

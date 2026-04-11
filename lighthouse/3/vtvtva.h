@@ -43,6 +43,8 @@ void vtvtva_F_xxx(const X_t<T>& x_values, Y_X_t<T>& y_x, Y_XX_t<T>& y_xx, Y_XXX_
       }
     }
   }
+  A_t<T_t<T_t<T,n>,n>,m>::tape::reset();
+
 }	
 
 
@@ -138,6 +140,8 @@ void AD_F_xxx(
       y_3(j, v3) = y(j).value().value().tangent(v3);
     }
   }
+
+  A_t<T_t<T_t<T, V3>, V2>, U1>::tape::reset();
 }
 
 
@@ -313,8 +317,8 @@ bool Validate_vtvtva(std::ofstream& out) {
 
   // Show the seeds
   out << "Seed for x: \n" << x_values << "\n\n";
-  out << "Seed for Y_({1}): \n" << y_1 << "\n\n";
-  out << "Seed for X^({2}): \n" << x_2 << "\n\n";
+  out << "Seed for Y_{(1)}: \n" << y_1 << "\n\n";
+  out << "Seed for X^{(2)}: \n" << x_2 << "\n\n";
   out << "Seed for X^{(3)}: \n" << x_3 << "\n\n";
   out << "Seed for Y_{(1)}^{(2)}: (nested matrices not printed)\n\n";
   out << "Seed for Y_{(1)}^{(3)}: (nested matrices not printed)\n\n";
@@ -322,7 +326,7 @@ bool Validate_vtvtva(std::ofstream& out) {
   out << "Seed for Y_{(1)}^{(2, 3)}: (nested matrices not printed)\n\n";
 
   // Populate y_x, y_xx and y_xxx
-  vtvtvt_F_xxx(x_values, y_x, y_xx, y_xxx);
+  vtvtva_F_xxx(x_values, y_x, y_xx, y_xxx);
 
   // Run the AD version
   AD_F_xxx(
@@ -343,7 +347,8 @@ bool Validate_vtvtva(std::ofstream& out) {
     Formula_y_values, 
     Formula_x_1, Formula_y_2, Formula_y_3,
     Formula_x_1_2, Formula_x_1_3, Formula_y_2_3,
-    Formula_x_1_2_3);
+    Formula_x_1_2_3
+  );
 
   T diff;
   T maxDiff = 0;
