@@ -264,7 +264,7 @@ void Formula_F_xxxx(
     for (int v1 = 0; v1 < V1; v1++ ) {
       T sum = 0;
       for (int i1 = 0; i1 < n; i1++) {
-          sum += y_x(j, i1) * x_1(i1, v1);
+          sum += y_x(j)(i1) * x_1(i1, v1);
       }
       y_1(j, v1) = sum;
     }
@@ -273,7 +273,7 @@ void Formula_F_xxxx(
     for (int v2 = 0; v2 < V2; v2++ ) {
       T sum = 0;
       for (int i2 = 0; i2 < n; i2++) {
-          sum += y_x(j, i2) * x_2(i2, v2);
+          sum += y_x(j)(i2) * x_2(i2, v2);
       }
       y_2(j, v2) = sum;
     }
@@ -282,7 +282,7 @@ void Formula_F_xxxx(
     for (int v3 = 0; v3 < V3; v3++ ) {
       T sum = 0;
       for (int i3 = 0; i3 < n; i3++) {
-          sum += y_x(j, i3) * x_3(i3, v3);
+          sum += y_x(j)(i3) * x_3(i3, v3);
       }
       y_3(j, v3) = sum;
     }
@@ -291,7 +291,7 @@ void Formula_F_xxxx(
     for (int v4 = 0; v4 < V4; v4++ ) {
       T sum = 0;
       for (int i4 = 0; i4 < n; i4++) {
-          sum += y_x(j, i4) * x_4(i4, v4);
+          sum += y_x(j)(i4) * x_4(i4, v4);
       }
       y_4(j, v4) = sum;
     }
@@ -301,38 +301,235 @@ void Formula_F_xxxx(
   for (int j = 0; j < m; j++) {
     for (int v1 = 0; v1 < V1; v1++) {
       for (int v2 = 0; v2 < V2; v2++) {
-        
+        T term1 = 0;
+        T term2 = 0;
+        for (int i1 = 0; i1 < n; i1++) {
+          term2 += y_x(j)(i1) * x_1_2(i1)(v1, v2);
+          for (int i2 = 0; i2 < n; i2++) {
+            term1 += y_xx(j)(i1)(i2) * x_1(i1, v1) * x_2(i2, v2);
+          }
+        }
+        y_1_2(j)(v1, v2) = term1 + term2;
       }
     }
   }
 
   // Y^{(1, 3)} = F'' * X^{(1)} * X^{(3)} + F' * X^{(1, 3)}
+  for (int j = 0; j < m; j++) {
+    for (int v1 = 0; v1 < V1; v1++) {
+      for (int v3 = 0; v3 < V3; v3++) {
+        T term1 = 0;
+        T term2 = 0;
+        for (int i1 = 0; i1 < n; i1++) {
+          term2 += y_x(j)(i1) * x_1_3(i1)(v1, v3);
+          for (int i3 = 0; i3 < n; i3++) {
+            term1 += y_xx(j)(i1)(i3) * x_1(i1, v1) * x_3(i3, v3);
+          }
+        }
+        y_1_3(j)(v1, v3) = term1 + term2;
+      }
+    }
+  }
 
   // Y^{(1, 4)} = F'' * X^{(1)} * X^{(4)} + F' * X^{(1, 4)}
+  for (int j = 0; j < m; j++) {
+    for (int v1 = 0; v1 < V1; v1++) {
+      for (int v4 = 0; v4 < V4; v4++) {
+        T term1 = 0;
+        T term2 = 0;
+        for (int i1 = 0; i1 < n; i1++) {
+          term2 += y_x(j)(i1) * x_1_4(i1)(v1, v4);
+          for (int i4 = 0; i4 < n; i4++) {
+            term1 += y_xx(j)(i1)(i4) * x_1(i1, v1) * x_4(i4, v4);
+          }
+        }
+        y_1_4(j)(v1, v4) = term1 + term2;
+      }
+    }
+  }
 
   // Y^{(2, 3)} = F'' * X^{(2)} * X^{(3)} + F' * X^{(2, 3)}
+  for (int j = 0; j < m; j++) {
+    for (int v2 = 0; v2 < V2; v2++) {
+      for (int v3 = 0; v3 < V3; v3++) {
+        T term1 = 0;
+        T term2 = 0;
+        for (int i2 = 0; i2 < n; i2++) {
+          term2 += y_x(j)(i2) * x_2_3(i2)(v2, v3);
+          for (int i3 = 0; i3 < n; i3++) {
+            term1 += y_xx(j)(i2)(i3) * x_2(i2, v2) * x_3(i3, v3);
+          }
+        }
+        y_2_3(j)(v2, v3) = term1 + term2;
+      }
+    }
+  }
 
   // Y^{(2, 4)} = F'' * X^{(2)} * X^{(4)} + F' * X^{(2, 4)}
+  for (int j = 0; j < m; j++) {
+    for (int v2 = 0; v2 < V2; v2++) {
+      for (int v4 = 0; v4 < V4; v4++) {
+        T term1 = 0;
+        T term2 = 0;
+        for (int i2 = 0; i2 < n; i2++) {
+          term2 += y_x(j)(i2) * x_2_4(i2)(v2, v4);
+          for (int i4 = 0; i4 < n; i4++) {
+            term1 += y_xx(j)(i2)(i4) * x_2(i2, v2) * x_4(i4, v4);
+          }
+        }
+        y_2_4(j)(v2, v4) = term1 + term2;
+      }
+    }
+  }
 
   // Y^{(3, 4)} = F'' * X^{(3)} * X^{(4)} + F' * X^{(3, 4)}
+  for (int j = 0; j < m; j++) {
+    for (int v3 = 0; v3 < V3; v3++) {
+      for (int v4 = 0; v4 < V4; v4++) {
+        T term1 = 0;
+        T term2 = 0;
+        for (int i3 = 0; i3 < n; i3++) {
+          term2 += y_x(j)(i3) * x_3_4(i3)(v3, v4);
+          for (int i4 = 0; i4 < n; i4++) {
+            term1 += y_xx(j)(i3)(i4) * x_3(i3, v3) * x_4(i4, v4);
+          }
+        }
+        y_3_4(j)(v3, v4) = term1 + term2;
+      }
+    }
+  }
 
   // Y^{(1, 2, 3)} = F''' * X^{(1)} * X^{(2)} * X^{(3)}
   // + F'' * X^{(2)} * X^{(1, 3)}
   // + F'' * X^{(1)} * X^{(2, 3)}
   // + F'' * X^{(3)} * X^{(1, 2)}
   // + F' * X^{(1, 2, 3)}
+  for (int j = 0; j < m; j++) {
+    for (int v1 = 0; v1 < V1; v1++) {
+      for (int v2 = 0; v2 < V2; v2++) {
+        for (int v3 = 0; v3 < V3; v3++) {
+          T term1 = 0;
+          T term2 = 0;
+          T term3 = 0;
+          T term4 = 0;
+          T term5 = 0;
+          for (int i1 = 0; i1 < n; i1++) {
+            term5 += y_x(j)(i1) * x_1_2_3(i1, v1)(v2, v3);
+            for (int i2 = 0; i2 < n; i2++) {
+              term2 += y_xx(j)(i1)(i2) * x_2(i2, v2) * x_1_3(i1)(v1, v3);
+              term3 += y_xx(j)(i1)(i2) * x_1(i1, v1) * x_2_3(i2)(v2, v3);
+              for (int i3 = 0; i3 < n; i3++) {
+                term1 += y_xxx(j)(i1)(i2)(i3) * x_1(i1, v1) * x_2(i2, v2) * x_3(i3, v3);
+              }
+            }
+            for (int i3 = 0; i3 < n; i3++) {
+              term4 += y_xx(j)(i1)(i3) * x_1_2(i1)(v1, v2) * x_3(i3, v3);
+            }
+          }
+          y_1_2_3(j, v1)(v2, v3) = term1 + term2 + term3 + term4 + term5;
+        }
+      }
+    }
+  }
 
   // Y^{(1, 2, 4)} = F''' * X^{(1)} * X^{(2)} * X^{(4)}
   // + F'' * X^{(2)} * X^{(1, 4)}
   // + F'' * X^{(1)} * X^{(2, 4)}
   // + F'' * X^{(4)} * X^{(1, 2)}
   // + F' * X^{(1, 2, 4)}
+  for (int j = 0; j < m; j++) {
+    for (int v1 = 0; v1 < V1; v1++) {
+      for (int v2 = 0; v2 < V2; v2++) {
+        for (int v4 = 0; v4 < V4; v4++) {
+          T term1 = 0;
+          T term2 = 0;
+          T term3 = 0;
+          T term4 = 0;
+          T term5 = 0;
+          for (int i1 = 0; i1 < n; i1++) {
+            term5 += y_x(j)(i1) * x_1_2_4(i1, v1)(v2, v4);
+            for (int i2 = 0; i2 < n; i2++) {
+              term2 += y_xx(j)(i1)(i2) * x_2(i2, v2) * x_1_4(i1)(v1, v4);
+              term3 += y_xx(j)(i1)(i2) * x_1(i1, v1) * x_2_4(i2)(v2, v4);
+              for (int i4 = 0; i4 < n; i4++) {
+                term1 += y_xxx(j)(i1)(i2)(i4) * x_1(i1, v1) * x_2(i2, v2) * x_4(i4, v4);
+              }
+            }
+            for (int i4 = 0; i4 < n; i4++) {
+              term4 += y_xx(j)(i1)(i4) * x_1_2(i1)(v1, v2) * x_4(i4, v4);
+            }
+          }
+          y_1_2_4(j, v1)(v2, v4) = term1 + term2 + term3 + term4 + term5;
+        }
+      }
+    }
+  }
+
+  // Y^{(1, 3, 4)} = F''' * X^{(1)} * X^{(3)} * X^{(4)}
+  // + F'' * X^{(1)} * X^{(3, 4)}
+  // + F'' * X^{(3)} * X^{(1, 4)}
+  // + F'' * X^{(4)} * X^{(1, 3)}
+  // + F' * X^{(1, 3, 4)}
+  for (int j = 0; j < m; j++) {
+    for (int v1 = 0; v1 < V1; v1++) {
+      for (int v3 = 0; v3 < V3; v3++) {
+        for (int v4 = 0; v4 < V4; v4++) {
+          T term1 = 0;
+          T term2 = 0;
+          T term3 = 0;
+          T term4 = 0;
+          T term5 = 0;
+          for (int i1 = 0; i1 < n; i1++) {
+            term5 += y_x(j)(i1) * x_1_3_4(i1, v1)(v3, v4);
+            for (int i3 = 0; i3 < n; i3++) {
+              term2 += y_xx(j)(i1)(i3) * x_1(i1, v1) * x_3_4(i3)(v3, v4);
+              term3 += y_xx(j)(i1)(i3) * x_3(i3, v3) * x_1_4(i1)(v1, v4);
+              for (int i4 = 0; i4 < n; i4++) {
+                term1 += y_xxx(j)(i1)(i3)(i4) * x_1(i1, v1) * x_3(i3, v3) * x_4(i4, v4);
+              }
+            }
+            for (int i4 = 0; i4 < n; i4++) {
+              term4 += y_xx(j)(i1)(i4) * x_1_3(i1)(v1, v3) * x_4(i4, v4);
+            }
+          }
+          y_1_3_4(j, v1)(v3, v4) = term1 + term2 + term3 + term4 + term5;
+        }
+      }
+    }
+  }
 
   // Y^{(2, 3, 4)} = F''' * X^{(2)} * X^{(3)} * X^{(4)}
   // + F'' * X^{(2)} * X^{(3, 4)}
   // + F'' * X^{(3)} * X^{(2, 4)}
   // + F'' * X^{(4)} * X^{(2, 3)}
   // + F' * X^{(2, 3, 4)}
+  for (int j = 0; j < m; j++) {
+    for (int v2 = 0; v2 < V2; v2++) {
+      for (int v3 = 0; v3 < V3; v3++) {
+        for (int v4 = 0; v4 < V4; v4++) {
+          T term1 = 0;
+          T term2 = 0;
+          T term3 = 0;
+          T term4 = 0;
+          T term5 = 0;
+          for (int i2 = 0; i2 < n; i2++) {
+            term5 += y_x(j)(i2) * x_2_3_4(i2, v2)(v3, v4);
+            for (int i3 = 0; i3 < n; i3++) {
+              term2 += y_xx(j)(i2)(i3) * x_2(i2, v2) * x_3_4(i3)(v3, v4);
+              term3 += y_xx(j)(i2)(i3) * x_3(i3, v3) * x_2_4(i2)(v2, v4);
+              for (int i4 = 0; i4 < n; i4++) {
+                term1 += y_xxx(j)(i2)(i3)(i4) * x_2(i2, v2) * x_3(i3, v3) * x_4(i4, v4);
+              }
+            }
+            for (int i4 = 0; i4 < n; i4++) {
+              term4 += y_xx(j)(i2)(i4) * x_2_3(i2)(v2, v3) * x_4(i4, v4);
+            }
+          }
+          y_1_2_3(j, v2)(v3, v4) = term1 + term2 + term3 + term4 + term5;
+        }
+      }
+    }
+  }
 
   // Y^{(1, 2, 3, 4)}
   // = F'''' * X^{(1)} * X^{(2)} * X^{(3)} * X^{(4)}
@@ -341,7 +538,7 @@ void Formula_F_xxxx(
   // + F''' * X^{(1)} * X^{(4)} * X^{(2, 3)}
   // + F''' * X^{(2)} * X^{(3)} * X^{(1, 4)}
   // + F''' * X^{(2)} * X^{(4)} * X^{(1, 3)}
-  // + F''' * X^{(3)} * X^{(4)} * X^{(1, 4)}
+  // + F''' * X^{(3)} * X^{(4)} * X^{(1, 2)}
   // + F'' * X^{(1)} * X^{(2, 3, 4)}
   // + F'' * X^{(1, 2)} * X^{(3, 4)}
   // + F'' * X^{(1, 4)} * X^{(2, 3)}
@@ -350,4 +547,129 @@ void Formula_F_xxxx(
   // + F'' * X^{(2, 4)} * X^{(1, 3)}
   // + F'' * X^{(3)} * X^{(1, 2, 4)}
   // + F' * X^{(1, 2, 3, 4)}
+  for (int j = 0; j < m; j++) {
+    for (int v1 = 0; v1 < V1; v1++) {
+      for (int v2 = 0; v2 < V2; v2++) {
+        for (int v3 = 0; v3 < V3; v3++) {
+          for (int v4 = 0; v4 < V4; v4++) {
+            T term1, term2, term3, term4, term5, term6, term7, term8, term9,
+            term10, term11, term12, term13, term14, term15 = 0;
+            for (int i1 = 0; i1 < n; i1++) {
+              term15 += y_x(j)(i1) * x_1_2_3_4(i1)(v1, v2)(v3, v4);
+              for (int i2 = 0; i2 < n; i2++) {
+                term8 += y_xx(j)(i1)(i2) * x_1(i1 ,v1) * x_2_3_4(i2, v2)(v3, v4);
+                term10 += y_xx(j)(i1)(i2) * x_1_4(i1)(v1, v4) * x_2_3(i2)(v2, v3);
+                term12 += y_xx(j)(i1)(i2) * x_2(i2, v2) * x_1_3_4(i1, v1)(v3, v4);
+                term13 += y_xx(j)(i1)(i2) * x_2_4(i2)(v2, v4) * x_1_3(i1)(v1, v3);
+                for (int i3 = 0; i3 < n; i3++) {
+                  term2 += y_xxx(j)(i1)(i2)(i3) * x_1(i1, v1) * x_2(i1, v2) * x_3_4(i3)(v3, v4);
+                  term3 += y_xxx(j)(i1)(i2)(i3) * x_1(i1, v1) * x_3(i3, v3) * x_2_4(i2)(v2, v4);
+                  term5 += y_xxx(j)(i1)(i2)(i3) * x_2(i2, v2) * x_3(i3, v3) * x_1_4(i1)(v1, v4);
+                  for (int i4 = 0; i4 < n; i4++) {
+                    term1 += y_xxxx(j)(i1)(i2)(i3)(i4) * x_1(i1, v1) * x_2(i2, v2) * x_3(i3, v3) * x_4(i4, v4);
+                  }
+                }
+                for (int i4 = 0; i4 < n; i4++) {
+                  term4 += y_xxx(j)(i1)(i2)(i4) * x_1(i1, v1)  * x_4(i4, v4) * x_2_3(i1)(v1, v2);
+                  term6 += y_xxx(j)(i1)(i2)(i4) * x_2(i2, v2)  * x_4(i4, v4) * x_1_3(i1)(v1, v3);
+                }
+              }
+              for (int i3 = 0; i3 < n; i3++) {
+                term9 += y_xx(j)(i1)(i3) * x_1_2(i1)(v1, v2) * x_3_4(i3)(v3, v4);
+                term14 += y_xx(j)(i1)(i3) * x_3(i3, v3) * x_1_2_4(i1, v1)(v2, v4);
+                for (int i4 = 0; i4 < n; i4++) {
+                  term7 += y_xxx(j)(i1)(i3)(i4) * x_3(i3, v3) * x_4(i4, v4) * x_1_2(i1)(v1, v2);
+                }
+              }
+              for (int i4 = 0; i4 < n; i4++) {
+                term11 += y_xx(j)(i1)(i4) * x_1_2_3(i1, v1)(v2, v3) * x_4(i4, v4);
+              }
+            }
+            y_1_2_3_4(j)(v1, v2)(v3, v4) = term1 + term2 + term3 + term4 + term5 + term6 + term7 + term8 + term9 + term10 + term11 + term12 + term13 + term14 + term15;
+          }
+        }
+      }
+    }
+  }
+}
+
+
+template<typename T, int V1, int V2, int V3, int V4>
+bool Validate_vtvtvtvt(std::ofstream& out) {
+  T tol = std::pow(std::numeric_limits<T>::epsilon(), 1.0 / 8.0);
+
+  Y_X_t<T> y_x;
+  Y_XX_t<T> y_xx;
+  Y_XXX_t<T> y_xxx;
+  Y_XXXX_t<T> y_xxxx;
+
+  // Outputs
+  Y_t<T> y_values;
+  Eigen::Matrix<T, m, V1> AD_y_1;
+  Eigen::Matrix<T, m, V1> Formula_y_1;
+  Eigen::Matrix<T, m, V2> AD_y_2; 
+  Eigen::Matrix<T, m, V2> Formula_y_2; 
+  Eigen::Matrix<T, m, V3> AD_y_3; 
+  Eigen::Matrix<T, m, V3> Formula_y_3; 
+  Eigen::Matrix<T, m, V4> AD_y_4;
+  Eigen::Matrix<T, m, V4> Formula_y_4;
+  Eigen::Vector<Eigen::Matrix<T, V1, V2>, m> AD_y_1_2;
+  Eigen::Vector<Eigen::Matrix<T, V1, V2>, m> Formula_y_1_2;
+  Eigen::Vector<Eigen::Matrix<T, V1, V3>, m> AD_y_1_3; 
+  Eigen::Vector<Eigen::Matrix<T, V1, V3>, m> Formula_y_1_3; 
+  Eigen::Vector<Eigen::Matrix<T, V1, V4>, m> AD_y_1_4;
+  Eigen::Vector<Eigen::Matrix<T, V1, V4>, m> Formula_y_1_4;
+  Eigen::Vector<Eigen::Matrix<T, V2, V3>, m> AD_y_2_3;
+  Eigen::Vector<Eigen::Matrix<T, V2, V3>, m> Formula_y_2_3;
+  Eigen::Vector<Eigen::Matrix<T, V2, V4>, m> AD_y_2_4;
+  Eigen::Vector<Eigen::Matrix<T, V2, V4>, m> Formula_y_2_4;
+  Eigen::Vector<Eigen::Matrix<T, V3, V4>, m> AD_y_3_4;
+  Eigen::Vector<Eigen::Matrix<T, V3, V4>, m> Formula_y_3_4;
+  Eigen::Matrix<Eigen::Matrix<T, V2, V3>, m, V1> AD_y_1_2_3;
+  Eigen::Matrix<Eigen::Matrix<T, V2, V3>, m, V1> Formula_y_1_2_3;
+  Eigen::Matrix<Eigen::Matrix<T, V2, V4>, m, V1> AD_y_1_2_4;
+  Eigen::Matrix<Eigen::Matrix<T, V2, V4>, m, V1> Formula_y_1_2_4;
+  Eigen::Matrix<Eigen::Matrix<T, V3, V4>, m, V1> AD_y_1_3_4;
+  Eigen::Matrix<Eigen::Matrix<T, V3, V4>, m, V1> Formula_y_1_3_4;
+  Eigen::Matrix<Eigen::Matrix<T, V3, V4>, m, V2> AD_y_2_3_4;
+  Eigen::Matrix<Eigen::Matrix<T, V3, V4>, m, V2> Formula_y_2_3_4;
+  Eigen::Vector<Eigen::Matrix<Eigen::Matrix<T, V3, V4>, V1, V2>, m> AD_y_1_2_3_4;
+  Eigen::Vector<Eigen::Matrix<Eigen::Matrix<T, V3, V4>, V1, V2>, m> Formula_y_1_2_3_4;
+
+  // Inputs
+  X_t<T> x_values;
+  Eigen::Matrix<T, n, V1> x_1;
+  Eigen::Matrix<T, n, V2> x_2;
+  Eigen::Matrix<T, n, V3> x_3;
+  Eigen::Matrix<T, n, V4> x_4;
+  Eigen::Vector<Eigen::Matrix<T, V1, V2>, n> x_1_2;
+  Eigen::Vector<Eigen::Matrix<T, V1, V3>, n> x_1_3;
+  Eigen::Vector<Eigen::Matrix<T, V1, V4>, n> x_1_4; 
+  Eigen::Vector<Eigen::Matrix<T, V2, V3>, n> x_2_3;
+  Eigen::Vector<Eigen::Matrix<T, V2, V4>, n> x_2_4; 
+  Eigen::Vector<Eigen::Matrix<T, V3, V4>, n> x_3_4;
+  Eigen::Matrix<Eigen::Matrix<T, V2, V3>, n, V1> x_1_2_3;
+  Eigen::Matrix<Eigen::Matrix<T, V2, V4>, n, V1> x_1_2_4;
+  Eigen::Matrix<Eigen::Matrix<T, V3, V3>, n, V1> x_1_3_4;
+  Eigen::Matrix<Eigen::Matrix<T, V3, V4>, n, V2> x_2_3_4;
+  Eigen::Vector<Eigen::Matrix<Eigen::Matrix<T, V3, V4>, V1, V2>, n> x_1_2_3_4;
+  for (int i = 0; i < n; i++) {
+    x_1_2(i) = Eigen::Matrix<T, V1, V2>::Random().cwiseAbs();
+    x_1_3(i) = Eigen::Matrix<T, V1, V3>::Random().cwiseAbs();
+    x_1_4(i) = Eigen::Matrix<T, V1, V4>::Random().cwiseAbs();
+    x_2_3(i) = Eigen::Matrix<T, V2, V3>::Random().cwiseAbs();
+    x_2_4(i) = Eigen::Matrix<T, V2, V4>::Random().cwiseAbs();
+    x_3_4(i) = Eigen::Matrix<T, V3, V4>::Random().cwiseAbs();
+    for (int v1 = 0; v1 < V1; v1++) {
+      x_1_2_3(i, v1) = Eigen::Matrix<T, V2, V3>::Random().cwiseAbs();
+      x_1_2_4(i, v1) = Eigen::Matrix<T, V2, V4>::Random().cwiseAbs();
+      x_1_3_4(i, v1) = Eigen::Matrix<T, V3, V4>::Random().cwiseAbs();
+      for (int v2 = 0; v2 < V2; v2++) {
+        x_1_2_3_4(i)(v1, v2) = Eigen::Matrix<T, V3, V4>::Random().cwiseAbs();
+      }
+    }
+    for (int v2 = 0; v2 < V2; v2++) {
+      x_2_3_4(i, v2) = Eigen::Matrix<T, V3, V4>::Random().cwiseAbs();
+    }
+  }
 }
