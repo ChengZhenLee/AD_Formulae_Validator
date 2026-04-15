@@ -71,7 +71,7 @@ void AD_F_xxxx(
 
   for (int i = 0; i < n; i++) {
     // Seed x
-    x(i).value().value().value().value() = x(i);
+    x(i).value().value().value().value() = x_values(i);
 
     // Seed X^{(1)}
     for (int v1 = 0; v1 < V1; v1++) {
@@ -604,7 +604,8 @@ bool Validate_vtvtvtvt(std::ofstream& out) {
   Y_XXXX_t<T> y_xxxx;
 
   // Outputs
-  Y_t<T> y_values;
+  Y_t<T> AD_y_values;
+  Y_t<T> Formula_y_values;
   Eigen::Matrix<T, m, V1> AD_y_1;
   Eigen::Matrix<T, m, V1> Formula_y_1;
   Eigen::Matrix<T, m, V2> AD_y_2; 
@@ -650,7 +651,7 @@ bool Validate_vtvtvtvt(std::ofstream& out) {
   Eigen::Vector<Eigen::Matrix<T, V3, V4>, n> x_3_4;
   Eigen::Matrix<Eigen::Matrix<T, V2, V3>, n, V1> x_1_2_3;
   Eigen::Matrix<Eigen::Matrix<T, V2, V4>, n, V1> x_1_2_4;
-  Eigen::Matrix<Eigen::Matrix<T, V3, V3>, n, V1> x_1_3_4;
+  Eigen::Matrix<Eigen::Matrix<T, V3, V4>, n, V1> x_1_3_4;
   Eigen::Matrix<Eigen::Matrix<T, V3, V4>, n, V2> x_2_3_4;
   Eigen::Vector<Eigen::Matrix<Eigen::Matrix<T, V3, V4>, V1, V2>, n> x_1_2_3_4;
   for (int i = 0; i < n; i++) {
@@ -672,4 +673,227 @@ bool Validate_vtvtvtvt(std::ofstream& out) {
       x_2_3_4(i, v2) = Eigen::Matrix<T, V3, V4>::Random().cwiseAbs();
     }
   }
+
+  out << "\n=== Testing Fourth Derivative (Tangent over Tangent over Tangent over Tangent Mode) ===\n";
+
+  // Show the seeds
+  out << "Seed for x: \n" << x_values << "\n\n";
+  out << "Seed for X^{(1)}: \n" << x_1 << "\n\n";
+  out << "Seed for X^{(2)}: \n" << x_2 << "\n\n";
+  out << "Seed for X^{(3)}: \n" << x_3 << "\n\n";
+  out << "Seed for X^{(4)}: \n" << x_4 << "\n\n";
+  out << "Seed for X^{(1, 2)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(1, 3)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(1, 4)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(2, 3)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(2, 4)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(3, 4)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(1, 2, 3)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(1, 2, 4)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(1, 3, 4)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(2, 3, 4)}: (nested matrices not printed)\n\n";
+  out << "Seed for X^{(1, 2, 3, 4)}: (nested matrices not printed)\n\n";
+
+  // Populate y_x, y_xx and y_xxx
+  vastsa_F_xxx(x_values, y_x, y_xx, y_xxx);
+
+  // Run the AD version
+  AD_F_xxxx(
+    x_values,
+    x_1, x_2, x_3, x_4, 
+    x_1_2, x_1_3, x_1_4, x_2_3, x_2_4, x_3_4, 
+    x_1_2_3, x_1_2_4, x_1_3_4, x_2_3_4,
+    x_1_2_3_4,
+    AD_y_values,
+    AD_y_1, AD_y_2, AD_y_3, AD_y_4,
+    AD_y_1_2, AD_y_1_3, AD_y_1_4, AD_y_2_3, AD_y_2_4, AD_y_3_4,
+    AD_y_1_2_3, AD_y_1_2_4, AD_y_1_3_4, AD_y_2_3_4,
+    AD_y_1_2_3_4
+  );
+
+  // Run the Formula version
+  Formula_F_xxxx(
+    y_x, y_xx, y_xxx, y_xxxx,
+    x_values,
+    x_1, x_2, x_3, x_4, 
+    x_1_2, x_1_3, x_1_4, x_2_3, x_2_4, x_3_4, 
+    x_1_2_3, x_1_2_4, x_1_3_4, x_2_3_4,
+    x_1_2_3_4,
+    Formula_y_values,
+    Formula_y_1, Formula_y_2, Formula_y_3, Formula_y_4,
+    Formula_y_1_2, Formula_y_1_3, Formula_y_1_4, Formula_y_2_3, Formula_y_2_4, Formula_y_3_4,
+    Formula_y_1_2_3, Formula_y_1_2_4, Formula_y_1_3_4, Formula_y_2_3_4,
+    Formula_y_1_2_3_4
+  );
+
+  T diff;
+  T maxDiff = 0;
+
+  // Compare y
+  for (int j = 0; j < m; j++) {
+    diff = std::abs(AD_y_values(j) - Formula_y_values(j));
+    maxDiff = std::max(maxDiff, diff);
+    if (diff > tol) {
+      out << "Validation for y Failed\n";
+      out << "Validation failed at index " << j << " Diff: " << diff << "\n";
+      return false;
+    }
+
+    for (int v1 = 0; v1 < V1; v1++) {
+      // Compare y_1
+      diff = std::abs(AD_y_1(j, v1) - Formula_y_1(j, v1));
+      maxDiff = std::max(maxDiff, diff);
+      if (diff > tol) {
+        out << "Validation for Y^{(1)} Failed\n";
+        out << "Validation failed at index " << j << "," << v1 << " Diff: " << diff << "\n";
+        return false;
+      }
+
+      for (int v2 = 0; v2 < V2; v2++) {
+        // Compare y_1_2
+        diff = std::abs(AD_y_1_2(j)(v1, v2) - Formula_y_1_2(j)(v1, v2));
+        maxDiff = std::max(maxDiff, diff);
+        if (diff > tol) {
+          out << "Validation for Y^{(1, 2)} Failed\n";
+          out << "Validation failed at index " << j << "," << v1 << "," << v2 << " Diff: " << diff << "\n";
+          return false;
+        }
+
+        for (int v3 = 0; v3 < V3; v3++) {
+          // Compare y_1_2_3
+          diff = std::abs(AD_y_1_2_3(j, v1)(v2, v3) - Formula_y_1_2_3(j, v1)(v2, v3));
+          maxDiff = std::max(maxDiff, diff);
+          if (diff > tol) {
+            out << "Validation for Y^{(1, 2, 3)} Failed\n";
+            out << "Validation failed at index " << j << "," << v1 << "," << v2 << "," << v3 << " Diff: " << diff << "\n";
+            return false;
+          }
+
+          for (int v4 = 0; v4 < V4; v4++) {
+            // Compare y_1_2_3_4
+            diff = std::abs(AD_y_1_2_3_4(j)(v1, v2)(v3, v4) - Formula_y_1_2_3_4(j)(v1, v2)(v3, v4));
+            maxDiff = std::max(maxDiff, diff);
+            if (diff > tol) {
+              out << "Validation for Y^{(1, 2, 3, 4)} Failed\n";
+              out << "Validation failed at index " << j << "," << v1 << "," << v2 << "," << v3 << "," << v4 << " Diff: " << diff << "\n";
+              return false;
+            }
+          }
+        }
+      }
+
+      for (int v3 = 0; v3 < V3; v3++) {
+        // Compare y_1_3
+        diff = std::abs(AD_y_1_3(j)(v1, v3) - Formula_y_1_3(j)(v1, v3));
+        maxDiff = std::max(maxDiff, diff);
+        if (diff > tol) {
+          out << "Validation for Y^{(1, 3)} Failed\n";
+          out << "Validation failed at index " << j << "," << v1 << "," << v3 << " Diff: " << diff << "\n";
+          return false;
+        }
+
+        for (int v4 = 0; v4 < V4; v4++) {
+          // Compare y_1_3_4
+          diff = std::abs(AD_y_1_3_4(j, v1)(v3, v4) - Formula_y_1_3_4(j, v1)(v3, v4));
+          maxDiff = std::max(maxDiff, diff);
+          if (diff > tol) {
+            out << "Validation for Y^{(1, 3, 4)} Failed\n";
+            out << "Validation failed at index " << j << "," << v1 << "," << v3 << "," << v4 << " Diff: " << diff << "\n";
+            return false;
+          }
+        }
+      }
+
+      for (int v4 = 0; v4 < V4; v4++) {
+        // Compare y_1_4
+        diff = std::abs(AD_y_1_4(j)(v1, v4) - Formula_y_1_4(j)(v1, v4));
+        maxDiff = std::max(maxDiff, diff);
+        if (diff > tol) {
+          out << "Validation for Y^{(1, 4)} Failed\n";
+          out << "Validation failed at index " << j << "," << v1 << "," << v4 << " Diff: " << diff << "\n";
+          return false;
+        }
+      }
+    }
+
+    for (int v2 = 0; v2 < V2; v2++) {
+      // Compare y_2
+      diff = std::abs(AD_y_2(j, v2) - Formula_y_2(j, v2));
+      maxDiff = std::max(maxDiff, diff);
+      if (diff > tol) {
+        out << "Validation for Y^{(2)} Failed\n";
+        out << "Validation failed at index " << j << "," << v2 << " Diff: " << diff << "\n";
+        return false;
+      }
+
+      for (int v3 = 0; v3 < V3; v3++) {
+        // Compare y_2_3
+        diff = std::abs(AD_y_2_3(j)(v2, v3) - Formula_y_2_3(j)(v2, v3));
+        maxDiff = std::max(maxDiff, diff);
+        if (diff > tol) {
+          out << "Validation for Y^{(2, 3)} Failed\n";
+          out << "Validation failed at index " << j << "," << v2 << "," << v3 << " Diff: " << diff << "\n";
+          return false;
+        }
+
+        for (int v4 = 0; v4 < V4; v4++) {
+          // Compare y_2_3_4
+          diff = std::abs(AD_y_2_3_4(j, v2)(v3, v4) - Formula_y_2_3_4(j, v2)(v3, v4));
+          maxDiff = std::max(maxDiff, diff);
+          if (diff > tol) {
+            out << "Validation for Y^{(2, 3, 4)} Failed\n";
+            out << "Validation failed at index " << j << "," << v2 << "," << v3 << "," << v4 << " Diff: " << diff << "\n";
+            return false;
+          }
+        }
+      }
+
+      for (int v4 = 0; v4 < V4; v4++) {
+        // Compare y_2_4
+        diff = std::abs(AD_y_2_4(j)(v2, v4) - Formula_y_2_4(j)(v2, v4));
+        maxDiff = std::max(maxDiff, diff);
+        if (diff > tol) {
+          out << "Validation for Y^{(2, 4)} Failed\n";
+          out << "Validation failed at index " << j << "," << v2 << "," << v4 << " Diff: " << diff << "\n";
+          return false;
+        }
+      }
+    }
+
+    for (int v3 = 0; v3 < V3; v3++) {
+      // Compare y_3
+      diff = std::abs(AD_y_3(j, v3) - Formula_y_3(j, v3));
+      maxDiff = std::max(maxDiff, diff);
+      if (diff > tol) {
+        out << "Validation for Y^{(3)} Failed\n";
+        out << "Validation failed at index " << j << "," << v3 << " Diff: " << diff << "\n";
+        return false;
+      }
+
+      for (int v4 = 0; v4 < V4; v4++) {
+        // Compare y_3_4
+        diff = std::abs(AD_y_3_4(j)(v3, v4) - Formula_y_3_4(j)(v3, v4));
+        maxDiff = std::max(maxDiff, diff);
+        if (diff > tol) {
+          out << "Validation for Y^{(3, 4)} Failed\n";
+          out << "Validation failed at index " << j << "," << v3 << "," << v4 << " Diff: " << diff << "\n";
+          return false;
+        }
+      }
+    }
+
+    for (int v4 = 0; v4 < V4; v4++) {
+      // Compare y_4
+      diff = std::abs(AD_y_4(j, v4) - Formula_y_4(j, v4));
+      maxDiff = std::max(maxDiff, diff);
+      if (diff > tol) {
+        out << "Validation for Y^{(4)} Failed\n";
+        out << "Validation failed at index " << j << "," << v4 << " Diff: " << diff << "\n";
+        return false;
+      }
+    }
+  }
+  out << "Maximum difference:\n" << maxDiff << "\n";
+
+  return true;
 }
