@@ -40,70 +40,82 @@ void vavt_F_xx(const X_t<T>& x_values, Y_X_t<T>& y_x, Y_XX_t<T>& y_xx) {
 
 
 template<typename T, int V1, int U2>
+void T_F_xx(
+  X_t<T_t<A_t<T, U2>, V1>>& x, Y_t<T_t<A_t<T, U2>, V1>>& y,
+  Eigen::Matrix<T, n, V1>& x_1,
+  Y_t<T>& y_values,
+  Eigen::Matrix<T, m, V1>& y_1
+) {
+  for (int i = 0; i < n; i++) {
+    // Seed X^{(1)}
+    for (int v1 = 0; v1 < V1; v1++) {
+      x(i).tangent(v1).value() = x_1(i, v1);
+    }
+  }
+
+  F(x, y);
+
+  for (int j = 0; j < m; j++) {
+    // Extract y
+    y_values(j) = y(j).value().value();
+
+    for (int v1 = 0; v1 < V1; v1++) {
+      // Extract Y_{(1)}
+      y_1(j, v1) = y(j).tangent(v1).value();
+    }
+  }
+}
+
+
+template<typename T, int V1, int U2>
 void AD_F_xx(const X_t<T>& x_values, 
-  const Eigen::Matrix<T, n, V1>& x_1, const Eigen::Matrix<T, U2, m>& y_2, 
-  const Eigen::Vector<Eigen::Matrix<T, m, V1>, U2>& y_1_2, 
+  Eigen::Matrix<T, n, V1>& x_1, Eigen::Matrix<T, U2, m>& y_2, 
+  Eigen::Vector<Eigen::Matrix<T, m, V1>, U2>& y_1_2, 
   Y_t<T>& y_values, 
   Eigen::Matrix<T, m, V1>& y_1, Eigen::Matrix<T, U2, n>& x_2,
   Eigen::Vector<Eigen::Matrix<T, n, V1>, U2>& x_1_2) {
 
-  X_t<T_t<A_t<T,U2>,V1>> x; Y_t<T_t<A_t<T,U2>,V1>> y;
+  X_t<T_t<A_t<T, U2>, V1>> x; Y_t<T_t<A_t<T, U2>, V1>> y;
 
-  for (int v1 = 0; v1 < V1; v1++) {
-    for (int i=0;i<n;++i) {
-      x(i).value().value()=x_values(i);
+  for (int i = 0; i < n; i++) {
+    // Set x
+    x(i).value().value() = x_values(i);
 
-      // set X^{(1)}
-      x(i).tangent(v1).value() = x_1(i, v1);
-
-      x(i).value().register_input();
+    x(i).value().register_input();
+    for (int v1 = 0; v1 < V1; v1++) {
+      x(i).tangent(v1).register_input();
     }
   }
-    
-  F(x,y);
 
-  A_t<T,U2>::tape::init_adjoints();
-  
-  for (int v1 = 0; v1 < V1; v1++) {
+  T_F_xx<T, V1, U2>(x, y, x_1, y_values, y_1);
+
+  A_t<T, U2>::tape::init_adjoints();
+
+  for (int j = 0; j < m; j++) {
     for (int u2 = 0; u2 < U2; u2++) {
-      for (int j = 0; j < m; j++) {
-        // set Y^{(1)}_{(2)}
+      // Seed Y_{(2)}
+      y(j).value().adjoint(u2) = y_2(u2, j);
+      for (int v1 = 0; v1 < V1; v1++) {
+        // Seed Y^{(1)}_{(2)}
         y(j).tangent(v1).adjoint(u2) = y_1_2(u2)(j, v1);
-
-        // Set Y_{(2)}
-        y(j).value().adjoint(u2) = y_2(u2, j);
       }
     }
   }
 
-  A_t<T,U2>::tape::interpret();
-
-  // Extract y (only once)
-  for (int j = 0; j < m; j++) {
-    y_values(j) = y(j).value().value();
-  }
-  
-  // Extract Y^{(1)}
-  for (int j = 0; j < m; j++) {
-    for (int v1 = 0; v1 < V1; v1++) {
-      y_1(j, v1) = y(j).tangent(v1).value();
-    }
-  }
+  A_t<T, U2>::tape::interpret();
 
   for (int u2 = 0; u2 < U2; u2++) {
     for (int i = 0; i < n; i++) {
       // Extract X_{(2)}
-      x_2(u2, i) += x(i).value().adjoint(u2);
-
-      // Extract X^{(1)}_{(2)}
+      x_2(u2, i) = x(i).value().adjoint(u2);
       for (int v1 = 0; v1 < V1; v1++) {
+        // Extract X^{(1)}_{(2)}
         x_1_2(u2)(i, v1) = x(i).tangent(v1).adjoint(u2);
       }
     }
   }
 
-  // reset tape
-  A_t<T,U2>::tape::reset();
+  A_t<T, U2>::tape::reset();
 }
 
 
@@ -130,7 +142,7 @@ void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
     }
   }
 
-  // X_{(2)} = F'' * X^{(1)} * Y^{(1)}_{(2)} + F' * Y_{(2)}
+  // X_{(2)} += F'' * X^{(1)} * Y^{(1)}_{(2)} + F' * Y_{(2)}
   for (int u2 = 0; u2 < U2; u2++) {
     for (int i2 = 0; i2 < n; i2++) {
       T term1 = 0;
@@ -143,11 +155,11 @@ void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
           }
         }
       }
-      x_2(u2, i2) += term1 + term2;
+      x_2(u2, i2) = term1 + term2;
     }
   }
 
-  // X^{(1)}_{(2)} = F' * Y^{(1)}_{(2)}
+  // X^{(1)}_{(2)} += F' * Y^{(1)}_{(2)}
   for (int u2 = 0; u2 < U2; u2++) {
     for (int i = 0; i < n; i++) {
       for (int v1 = 0; v1 < V1; v1++) {
@@ -155,7 +167,7 @@ void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
         for (int j = 0; j < m; j++) {
           sum += y_x(j)(i) * y_1_2(u2)(j, v1);
         }
-        x_1_2(u2)(i, v1) += sum;
+        x_1_2(u2)(i, v1) = sum;
       }
     }
   }
