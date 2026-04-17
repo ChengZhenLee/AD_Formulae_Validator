@@ -175,6 +175,8 @@ void AD_F_xxx(
       y_1_2_3(u, 0)(j, 0) = y(j).adjoint().tangent().adjoint(u);
     }
   }
+
+  A_t<T, U>::tape::reset();
 }
 
 
