@@ -57,6 +57,59 @@ void vastsa_F_xxx(const X_t<T>& x_values, Y_X_t<T>& y_x, Y_XX_t<T>& y_xx, Y_XXX_
 
 
 template<typename T, int U>
+void TA_F_xxx(
+  X_t<A_t<T_t<A_t<T, U>, 1>, 1>>& x, Y_t<A_t<T_t<A_t<T, U>, 1>, 1>>& y,
+  const X_t<T>& x_values,
+  const Eigen::Matrix<T, 1, m>& y_1, const Eigen::Matrix<T, n, 1>& x_2,
+  const Eigen::Vector<Eigen::Matrix<T, m, 1>, 1>& y_1_2,
+  Y_t<T>& y_values,
+  Eigen::Matrix<T, 1, n>& x_1, Eigen::Matrix<T, m, 1>& y_2,
+  Eigen::Vector<Eigen::Matrix<T, n, 1>, 1>& x_1_2
+) {
+  for (int i = 0; i < n; i++) {
+    // Seed X^{(2)}
+    x(i).value().tangent().value() = x_2(i, 0);
+
+    x(i).register_input();
+  }
+
+  F(x, y);
+
+  A_t<T_t<A_t<T, U>, 1>, 1>::tape::init_adjoints();
+
+  // Seed Y_{(1)}
+  for (int j = 0; j < m; j++) {
+    y(j).adjoint().value().value() = y_1(0, j);
+
+    // Seed Y_{(1)}^{(2)}
+    y(j).adjoint().tangent().value() = y_1_2(0)(j, 0);
+  }
+
+  A_t<T_t<A_t<T, U>, 1>, 1>::tape::interpret();
+
+  // Extract y
+  for (int j = 0; j < m; j++) {
+    y_values(j) = y(j).value().value().value();
+  }
+
+  // Extract Y^{(2)}
+  for (int j = 0; j < m; j++) {
+    y_2(j, 0) = y(j).value().tangent().value();
+  }
+
+  // Extract X_{(1)}
+  for (int i = 0; i < n; i++) {
+    x_1(0, i) = x(i).adjoint().value().value();
+
+    // Extract X_{(1)}^{(2)}
+    x_1_2(0)(i, 0) = x(i).adjoint().tangent().value();
+  }
+
+  A_t<T_t<A_t<T, U>, 1>, 1>::tape::reset();
+}
+
+
+template<typename T, int U>
 void AD_F_xxx(
   const X_t<T>& x_values,
   const Eigen::Matrix<T, 1, m>& y_1, const Eigen::Matrix<T, n, 1>& x_2, const Eigen::Matrix<T, U, m>& y_3,
@@ -72,22 +125,18 @@ void AD_F_xxx(
   X_t<A_t<T_t<A_t<T, U>, 1>, 1>> x; Y_t<A_t<T_t<A_t<T, U>, 1>, 1>> y;
 
   for (int i = 0; i < n; i++) {
+    // Set x
     x(i).value().value().value() = x_values(i);
-    x(i).register_input();
     x(i).value().value().register_input();
-
-    // Seed X^{(2)}
-    x(i).value().tangent().value() = x_2(i, 0);
   }
 
-  F(x,y);
+  TA_F_xxx(x, y, x_values, y_1, x_2, y_1_2, y_values, x_1, y_2, x_1_2);
 
-  // Outer tape
-  A_t<T_t<A_t<T, U>, 1>, 1>::tape::init_adjoints();
+  A_t<T, U>::tape::init_adjoints();
 
+  // Seed Y_{(3)}
   for (int j = 0; j < m; j++) {
     for (int u = 0; u < U; u++) {
-      // Seed Y_{(3)}
       y(j).value().value().adjoint(u) = y_3(u, j);
 
       // Seed Y^{(2)}_{(3)}
@@ -95,14 +144,9 @@ void AD_F_xxx(
     }
   }
 
-  A_t<T_t<A_t<T, U>, 1>, 1>::tape::interpret();
-
-  // Inner tape
-  A_t<T, U>::tape::init_adjoints();
-
+  // Seed X_{(1, 3)}
   for (int i = 0; i < n; i++) {
     for (int u = 0; u < U; u++) {
-      // Seed X_{(1, 3)}
       x(i).adjoint().value().adjoint(u) = x_1_3(u)(0, i);
 
       // Seed X_{(1, 3)}^{(2)}
@@ -110,24 +154,20 @@ void AD_F_xxx(
     }
   }
 
-  for (int j = 0; j < m; j++) {
-    // Seed Y_{(1)}
-    y(j).adjoint().value().value() = y_1(0, j);
-
-    // Seed Y_{(1)}^{(2)}
-    y(j).adjoint().tangent().value() = y_1_2(0)(j, 0);
-  }
-
   A_t<T, U>::tape::interpret();
 
+  // Extract X_{(3)}
+  for (int i = 0; i < n; i++) { 
+    for (int u = 0; u < U; u++) {
+      x_3(u, i) = x(i).value().value().adjoint(u);
+
+      // Extract X^{(2)}_{(3)}
+      x_2_3(u)(i, 0) = x(i).value().tangent().adjoint(u);
+    }
+  }
+
+  // Extract Y_{(1, 3)}
   for (int j = 0; j < m; j++) {
-    // Extract y
-    y_values(j) = y(j).value().value().value();
-
-    // Extract Y^{(2)}
-    y_2(j, 0) = y(j).value().tangent().value();
-
-    // Extract Y_{(1, 3)}
     for (int u = 0; u < U; u++) {
       y_1_3(u)(0, j) = y(j).adjoint().value().adjoint(u);
 
@@ -135,25 +175,6 @@ void AD_F_xxx(
       y_1_2_3(u, 0)(j, 0) = y(j).adjoint().tangent().adjoint(u);
     }
   }
-
-  for (int i = 0; i < n; i++) {
-    for (int u = 0; u < U; u++) {
-      // Extract X_{(3)}
-      x_3(u, i) = x(i).value().value().adjoint(u);
-
-      // Extract X^{(2)}_{(3)}
-      x_2_3(u)(i, 0) = x(i).value().tangent().adjoint(u);
-    }
-
-    // Extract X_{(1)}
-    x_1(0, i) = x(i).adjoint().value().value();
-
-    // Extract X_{(1)}^{(2)}
-    x_1_2(0)(i, 0) = x(i).adjoint().tangent().value();
-  }
-
-  A_t<T, U>::tape::reset();
-  A_t<T_t<A_t<T, U>,1>,1>::tape::reset();
 }
 
 

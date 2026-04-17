@@ -55,7 +55,7 @@ void AD_F_xx(const X_t<T>& x_values,
   for (int i = 0; i < n; i++) {
     x(i).value().value() = x_values(i);
 
-    // Set X^{(2)}
+    // Seed X^{(2)}
     for (int v2 = 0; v2 < V2; v2++) {
       x(i).value().tangent(v2) = x_2(i, v2);
     }
@@ -66,11 +66,11 @@ void AD_F_xx(const X_t<T>& x_values,
 
   A_t<T_t<T,V2>,U1>::tape::init_adjoints();
 
-  // set Y_{(1)}
+  // seed Y_{(1)}
   for (int u1 = 0; u1 < U1; u1++) {
     for (int j = 0; j < m; j++) {
       y(j).adjoint(u1).value() = y_1(u1, j);
-      // set Y_{(1, 2)}
+      // seed Y_{(1)}^{(2)}
       for (int v2 = 0; v2 < V2; v2++) {
         y(j).adjoint(u1).tangent(v2) = y_1_2(u1)(j, v2);
       }

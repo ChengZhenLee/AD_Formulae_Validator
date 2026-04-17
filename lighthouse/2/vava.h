@@ -37,9 +37,8 @@ void vava_F_xx(const X_t<T>& x_values, Y_X_t<T>& y_x, Y_XX_t<T>& y_xx) {
       for (int i2=0;i2<n;++i2) 
         y_xx(m1)(m2)(i2)=x(i2).value().adjoint(m2);
     // extract Jacobian
-    for (int j = 0; j < m; j++) {
-      for (int m2 = 0; m2 < n; m2++)
-        y_x(j)(m1) = y(j).adjoint(m1).adjoint(m2);
+    for (int i = 0; i < n; i++) {
+      y_x(m1)(i) = x(i).adjoint(m1).value();
     }
     // reset both tapes for next m1
     A_t<A_t<T,n>,m>::tape::reset();
@@ -49,9 +48,48 @@ void vava_F_xx(const X_t<T>& x_values, Y_X_t<T>& y_x, Y_XX_t<T>& y_xx) {
 
 
 template<typename T, int U1, int U2>
+void A_F_xx(
+ X_t<A_t<A_t<T, U2>, U1>>& x, Y_t<A_t<A_t<T, U2>, U1>>& y,
+ Eigen::Matrix<T, U1, m>& y_1, 
+ Y_t<T>& y_values, Eigen::Matrix<T, U1, n>& x_1
+) {
+  for (int i = 0; i < n; i++) {
+    x(i).register_input();
+  }
+
+  F(x, y);
+
+  A_t<A_t<T, U2>, U1>::tape::init_adjoints();
+
+  for (int j = 0; j < m; j++) {
+    for (int u1 = 0; u1 < U1; u1++) {
+      // Seed Y_{(1)}
+      y(j).adjoint(u1).value() = y_1(u1, j);
+    }
+  }
+
+  A_t<A_t<T, U2>, U1>::tape::interpret();
+
+  for (int j = 0; j < m; j++) {
+    // Extract y
+    y_values(j) = y(j).value().value();
+  }
+
+  for (int i = 0; i < n; i++) {
+    for (int u1 = 0; u1 < U1; u1++) {
+      // Extract X_{(1)}
+      x_1(u1, i) = x(i).adjoint(u1).value();
+    }
+  }
+
+  A_t<A_t<T, U2>, U1>::tape::reset();
+}
+
+
+template<typename T, int U1, int U2>
 void AD_F_xx(const X_t<T>& x_values, 
-  const Eigen::Matrix<T, U1, m>& y_1, const Eigen::Matrix<T, U2, m>& y_2, 
-  const Eigen::Vector<Eigen::Matrix<T, U1, n>, U2>& x_1_2, 
+  Eigen::Matrix<T, U1, m>& y_1, Eigen::Matrix<T, U2, m>& y_2, 
+  Eigen::Vector<Eigen::Matrix<T, U1, n>, U2>& x_1_2, 
   Y_t<T>& y_values, 
   Eigen::Matrix<T, U1, n>& x_1, Eigen::Matrix<T, U2, n>& x_2,
   Eigen::Vector<Eigen::Matrix<T, U1, m>, U2>& y_1_2) {
@@ -60,65 +98,53 @@ void AD_F_xx(const X_t<T>& x_values,
   Y_t<A_t<A_t<T, U2>, U1>> y;
 
   for (int i = 0; i < n; i++) {
-      x(i).value().value() = x_values(i);
-      x(i).value().register_input();
-      x(i).register_input();
+    // Set x
+    x(i).value().value() = x_values(i);
+
+    x(i).value().register_input();
   }
 
-  F(x, y);
-
-  A_t<A_t<T, U2>, U1>::tape::init_adjoints();
-
-  // Seed Y_{(1)}
   for (int j = 0; j < m; j++) {
     for (int u1 = 0; u1 < U1; u1++) {
-      y(j).adjoint(u1).value() = y_1(u1, j);
+      y(j).adjoint(u1).register_input();
     }
   }
 
-  A_t<A_t<T, U2>, U1>::tape::interpret();
+  // First order adjoint
+  A_F_xx<T, U1, U2>(x, y, y_1, y_values, x_1);
 
   A_t<T, U2>::tape::init_adjoints();
 
   for (int u2 = 0; u2 < U2; u2++) {
-    // Seed X_{(1,2)}
-    for (int i = 0; i < n; i++) {
-      for (int u1 = 0; u1 < U1; u1++) {
-        x(i).adjoint(u1).adjoint(u2) = x_1_2(u2)(u1, i);
-      }
+    for (int j = 0; j < m; j++) {
+      // Seed Y_{(2)}
+      y(j).value().adjoint(u2) = y_2(u2, j);
     }
 
-    // Seed Y_{(2)}
-    for (int j = 0; j < m; j++) {
-      y(j).value().adjoint(u2) = y_2(u2, j);
+    for (int u1 = 0; u1 < U1; u1++) {
+      for (int i = 0; i < n; i++) {
+        // Seed X_{(1, 2)}
+        x(i).adjoint(u1).adjoint(u2) = x_1_2(u2)(u1, i);
+      }
     }
   }
 
   A_t<T, U2>::tape::interpret();
 
-  // Extract Y_{(1, 2)}
-  for (int j = 0; j < m; j++) {
-    y_values(j) = y(j).value().value();
-    for (int u1 = 0; u1 < U1; u1++) {
-      for (int u2 = 0; u2 < U2; u2++) {
+  for (int u2 = 0; u2 < U2; u2++) {
+    for (int i = 0; i < n; i++) {
+      // Extract X_{(2)}
+      x_2(u2, i) = x(i).value().adjoint(u2);
+    }
+
+    for (int j = 0; j < m; j++) {
+      for (int u1 = 0; u1 < U1; u1++) {
+        // Extract Y_{(1, 2)}
         y_1_2(u2)(u1, j) = y(j).adjoint(u1).adjoint(u2);
       }
     }
   }
 
-  for (int i = 0; i < n; i++) {
-    // Extract X_{(1)}
-    for (int u1 = 0; u1 < U1; u1++) {
-      x_1(u1, i) = x(i).adjoint(u1).value();
-    }
-
-    // Extract X_{(2)}
-    for (int u2 = 0; u2 < U2; u2++) {
-      x_2(u2, i) = x(i).value().adjoint(u2);
-    }
-  }
-
-  A_t<A_t<T, U2>, U1>::tape::reset();
   A_t<T, U2>::tape::reset();
 }
 
@@ -135,7 +161,7 @@ void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
   // y = f(x)
   F(x_values, y_values);
 
-  // X_{(1)} = F' * Y_{(1)}
+  // X_{(1)} += F' * Y_{(1)}
   for (int u1 = 0; u1 < U1; u1++) {
     for (int i = 0; i < n; i++) {
       T sum = 0;
@@ -159,7 +185,7 @@ void Formula_F_xx(const Y_X_t<T>& y_x, const Y_XX_t<T>& y_xx,
     }
   }
 
-  // X_{(2)} = F' * Y_{(2)} + F'' * Y_{(1)} * X_{(1, 2)}
+  // X_{(2)} += F' * Y_{(2)} + F'' * Y_{(1)} * X_{(1, 2)}
   for (int u2 = 0; u2 < U2; u2++) {
     for (int i2 = 0; i2 < n; i2++) {
       T term1 = 0;
@@ -223,6 +249,7 @@ bool Validate_vava(std::ofstream& out) {
   Formula_F_xx(y_x, y_xx, 
     x_values, y_1, y_2, x_1_2, 
               Formula_y_values, Formula_x_1, Formula_x_2, Formula_y_1_2);
+
 
   T diff;
   T maxDiff = 0;
