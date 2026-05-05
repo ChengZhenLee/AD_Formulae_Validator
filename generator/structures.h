@@ -4,6 +4,8 @@
 #include <vector>
 #include <deque>
 #include <string>
+#include <sstream>
+#include <map>
 
 
 // Serialized Tensor
@@ -43,12 +45,42 @@ struct Param {
     Tensor tensor;
     std::string name;
     ParamRole role;
+    std::vector<int> activeOrders = {};
+    std::map<size_t, size_t> orderedShape;
+    int highestOrder = 0;
 
-    Param(std::deque<size_t> shape, std::string inputName, ParamRole inputRole) 
-        : tensor(shape), name(inputName), role(inputRole) {
+    Param(std::map<size_t, size_t> oShape, std::deque<size_t> shape, std::string inputName, ParamRole inputRole) 
+        : orderedShape(oShape), tensor(shape), name(inputName), role(inputRole) {
+        
+        std::stringstream ss(inputName);
+        std::string segment;
+
+        // Separate the string by the delimiter '_'
+        while (std::getline(ss, segment, '_')) {
+            // If the current string is a number and not 'X' or 'Y'
+            if (!segment.empty() && std::isdigit(segment[0])) {
+                int order = std::stoi(segment);
+                activeOrders.push_back(order);
+
+                // Set the highest order
+                if (order > highestOrder) { 
+                    highestOrder = order; 
+                }
+            }
+        }
     }
 
-    bool isSeed() const { return role == ParamRole::Input; }
+    bool isSeed() { 
+        return role == ParamRole::Input; 
+    }
+
+    bool isActive(int order) {
+        return std::find(activeOrders.begin(), activeOrders.end(), order) != activeOrders.end();
+    }
+
+    size_t getShapeAt(int order) {
+        return orderedShape[order] ? orderedShape[order] : 0;
+    }
 };
 
 #endif

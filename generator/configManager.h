@@ -18,6 +18,7 @@ class ConfigManager{
         }
 
         void load(const std::string &filename);
+        std::string getType();
         size_t getTangentShape();
         size_t getAdjointShape();
         size_t getXShape();

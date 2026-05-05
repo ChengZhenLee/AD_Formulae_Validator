@@ -22,6 +22,11 @@ void ConfigManager::load(const std::string &filename) {
     }
 }
 
+// Returns the type of data
+std::string ConfigManager::getType() {
+    return config["T"];
+}
+
 
 // Returns the shape of tangent seeds
 size_t ConfigManager::getTangentShape() {
