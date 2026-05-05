@@ -2,17 +2,18 @@
 #define STRUCTURES_H
 
 #include <vector>
+#include <deque>
 #include <string>
 
 
 // Serialized Tensor
 struct Tensor {
     std::vector<double> data;
-    std::vector<size_t> shape;
+    std::deque<size_t> shape;
     std::vector<size_t> strides;
 
     // Initializer
-    Tensor(std::vector<size_t> dims) : shape(dims) {
+    Tensor(std::deque<size_t> dims) : shape(dims) {
         // Assign data to 0.0
         size_t total_size = 1;
         for (auto d : dims) total_size *= d;
@@ -35,14 +36,19 @@ struct Tensor {
     }
 };
 
+enum class ParamRole { Input, Output };
+
 // Input parameters for AD and Formula functions
 struct Param {
-    Tensor tensorShape;
+    Tensor tensor;
     std::string name;
+    ParamRole role;
 
-    Param(std::vector<size_t> dims, std::string inputName) 
-        : tensorShape(dims), name(inputName) {
+    Param(std::deque<size_t> shape, std::string inputName, ParamRole inputRole) 
+        : tensor(shape), name(inputName), role(inputRole) {
     }
+
+    bool isSeed() const { return role == ParamRole::Input; }
 };
 
 #endif

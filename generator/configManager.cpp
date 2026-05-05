@@ -23,13 +23,25 @@ void ConfigManager::load(const std::string &filename) {
 }
 
 
-// Returns the variable dimension size of tangent seeds
-size_t ConfigManager::getTangentDim() {
+// Returns the shape of tangent seeds
+size_t ConfigManager::getTangentShape() {
     return std::stoull(config["V"]);
 }
 
 
-// Returns the variable dimension size of adjoint seeds
-size_t ConfigManager::getAdjointDim() {
+// Returns the shape of adjoint seeds
+size_t ConfigManager::getAdjointShape() {
     return std::stoull(config["U"]);
+}
+
+
+// Returns the shape of inputs x
+size_t ConfigManager::getXShape() {
+    return std::stoull(config["x"]);
+}
+
+
+// Returns the shape of outputs y
+size_t ConfigManager::getYShape() {
+    return std::stoull(config["y"]);
 }

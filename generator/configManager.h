@@ -18,8 +18,10 @@ class ConfigManager{
         }
 
         void load(const std::string &filename);
-        size_t getTangentDim();
-        size_t getAdjointDim();
+        size_t getTangentShape();
+        size_t getAdjointShape();
+        size_t getXShape();
+        size_t getYShape();
 };
 
 #endif
