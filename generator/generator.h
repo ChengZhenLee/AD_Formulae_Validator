@@ -4,6 +4,8 @@
 
 #include "structures.h"
 
+std::string generateDrivers();
+
 std::string generateTangent(
     int currentOrder, int totalOrder, 
     std::vector<Param> parameters

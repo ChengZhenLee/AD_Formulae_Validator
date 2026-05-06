@@ -29,7 +29,7 @@ struct Tensor {
         }
     }
 
-    size_t getIndex(const std::vector<size_t>& coords) {
+    size_t getIndex(const std::deque<size_t>& coords) {
         size_t index = 0;
         for (size_t i = 0; i < coords.size(); i++) {
             index += coords[i] * strides[i];

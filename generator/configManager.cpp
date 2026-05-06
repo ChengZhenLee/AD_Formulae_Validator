@@ -22,7 +22,7 @@ void ConfigManager::load(const std::string &filename) {
     }
 }
 
-// Returns the type of data
+
 std::string ConfigManager::getType() {
     return config["T"];
 }
@@ -49,4 +49,10 @@ size_t ConfigManager::getXShape() {
 // Returns the shape of outputs y
 size_t ConfigManager::getYShape() {
     return std::stoull(config["y"]);
+}
+
+
+// Returns the name of the primal function
+std::string ConfigManager::getPrimalFunctionName() {
+    return config["f"];
 }
