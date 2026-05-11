@@ -55,7 +55,7 @@ std::vector<Param> generateParameters(int order, std::string sequence) {
 
 
 // Generate the complex nested AD types
-std::string generateNestedADType(int order, std::string sequence) {
+std::string generateNestedADType(std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     std::string V = std::to_string(cm.getTangentShape());
     std::string U = std::to_string(cm.getAdjointShape());
@@ -75,15 +75,15 @@ std::string generateNestedADType(int order, std::string sequence) {
 
 
 // Generate the x variable for complex nested AD types
-std::string generateXNestedADType(int order, std::string sequence) {
-    std::string complexType = generateNestedADType(order, sequence);
+std::string generateXNestedADType(std::string sequence) {
+    std::string complexType = generateNestedADType(sequence);
     return std::format("X_t<{}>", complexType);
 }
 
 
 // Generate the y variable for complex nested AD types
-std::string generateYNestedADType(int order, std::string sequence) {
-        std::string complexType = generateNestedADType(order, sequence);
+std::string generateYNestedADType(std::string sequence) {
+        std::string complexType = generateNestedADType(sequence);
     return std::format("Y_t<{}>", complexType);
 }
 
@@ -171,9 +171,14 @@ void extractAD(ADNested& y, Param& p, size_t curOrder, std::string& sequence, st
 // Seeds all parameters for a specific order/layer
 template<typename ADNested>
 void seedADForOrder(ADNested& x, std::vector<Param>& parameters, size_t curOrder, std::string& sequence) {
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t xShape = cm.getXShape();
+
     for (Param p : parameters) {
         if (p.highestOrder == curOrder && p.isActive(curOrder)) {
-            seedAD(x, p, curOrder, sequence, {});
+            for (size_t i = 0; i < xShape; i++) {
+                seedAD(x(i), p, curOrder, sequence, {i});
+            }
         }
     }
 }
@@ -182,37 +187,55 @@ void seedADForOrder(ADNested& x, std::vector<Param>& parameters, size_t curOrder
 // Extracts all values for a specific order/layer
 template<typename ADNested>
 void extractADForOrder(ADNested& y, std::vector<Param>& parameters, size_t curOrder, std::string& sequence) {
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t yShape = cm.getXShape();
+
     for (Param p : parameters) {
         if (p.highestOrder == curOrder && p.isActive(curOrder)) {
-            extractAD(y, p, curOrder, sequence, {});
+            for (size_t j = 0; j < yShape; j++) {
+                extractAD(y(j), p, curOrder, sequence, {j});
+            }
         }
     }
 }
 
 
 template<typename ADNested>
-void seedPrimal(ADNested& x, std::vector<Param> parameters, std::deque<size_t> coords) {
+void seedPrimal(ADNested& x, std::vector<Param> parameters) {
+    // TODO: add loop here
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t xShape = cm.getXShape();
+
     if constexpr (!isADNestedType<ADNested>) {
         for (Param p : parameters) {
             if (p.name.length() == 1 && p.name[0] == 'X') {
-                x = p.tensor.data[p.tensor.getIndex(coords)];
+                for (size_t i = 0; i < xShape; i++) {
+                    x(i) = p.tensor.data[p.tensor.getIndex({i})];
+                }
             }
         }
     }
 
-    seedPrimal(x.value(), parameters, coords);
+    seedPrimal(x.value(), parameters);
 }
 
 
 template<typename ADNested>
-void extractPrimal(ADNested& y, std::vector<Param> parameters, std::deque<size_t> coords) {
+void extractPrimal(ADNested& y, std::vector<Param> parameters) {
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t yShape = cm.getYShape();
+
     if constexpr (!isADNestedType<ADNested>) {
         for (Param p : parameters) {
             if (p.name.length() == 1 && p.name[0] == 'Y') {
-                p.tensor.data[p.tensor.getIndex(coords)] = y;
+                for (size_t j = 0; j < yShape; j++) {
+                    p.tensor.data[p.tensor.getIndex({j})] = y(j);
+                }
             }
         }
     }
+
+    extractPrimal(y.value(), parameters);
 }
 
 
@@ -221,7 +244,7 @@ std::string getCurrentLayerADType(std::string ADNested, size_t curOrder, std::st
     // adjoint over tangent -> 'at' -> order of adjoint is 2 -> 'a' -> A_t<double, U>
     // adjoint over tangent -> 'at' -> order of tangent is 1 -> 'at' -> T_t<A_t<double, U>, V>
     std::string subsequence = sequence.substr(0, sequence.length() - curOrder + 1);
-    return generateNestedADType(curOrder, subsequence);
+    return generateNestedADType(subsequence);
 }
 
 
@@ -231,4 +254,38 @@ std::string getCurrentLayerFunctionName(size_t curOrder) {
     if (curOrder == 0) return cm.getPrimalFunctionName();
     
     return std::format("AD_F_{}", curOrder);
+}
+
+
+// Generate the string required to register an input in an adjoint mode driver
+std::string generateRegisterInputString(size_t curOrder) {
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t xShape = cm.getXShape();
+    std::string result = "\tfor (size_t i = 0; i < xShape; i++) {{\n";
+
+    std::string xVariable = "x(i)";
+    for (int i = 0; i < curOrder - 1; i++) {
+        xVariable += ".value()";
+    }
+
+    result += std::format("\t\t{}.register_input();\n", xVariable);
+    result += "\t}\n";
+    
+    return result;
+}
+
+
+// Generate the string required to reset all tapes in a (top level) adjoint mode driver
+std::string generateResetTapeString(std::string sequence) {
+    std::string result = "";
+    std::string curSubstring = "";
+
+    for (int i = 0; i < sequence.length(); i++) {
+        if (sequence[i] == 'a') {
+            curSubstring = sequence.substr(0, i + 1);
+            result += std::format("{}::tape::reset();\n", generateNestedADType(curSubstring));
+        }
+    }
+
+    return result;
 }
