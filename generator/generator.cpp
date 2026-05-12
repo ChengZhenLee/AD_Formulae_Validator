@@ -1,9 +1,28 @@
 #include <format>
+#include <fstream>
 #include "generator.h"
 #include "utils.h"
 
 
-std::string generateDrivers() {
+std::string generateDrivers(std::ofstream& outFile, std::string sequence) {
+    size_t order = sequence.length();
+    std::string ADNested = generateNestedADType(order, sequence);
+
+    // TODO: Write the includes etc.
+    outFile << "#include 'utils.h'\n";
+    outFile << "#include types.h\n";
+    outFile << "#include ad.h\n";
+    outFile<< "\n\n";
+
+    for (int i = 0; i < order; i++) {
+        if (sequence[i] == 't') {
+            outFile << generateTangent(i + 1, sequence, ADNested); 
+        }
+        else if (sequence[i] == 'a') {
+            outFile << generateAdjoint(i + 1, sequence, ADNested);
+        }
+        outFile << "\n";
+    }
 }
 
 

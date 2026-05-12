@@ -4,16 +4,18 @@
 
 #include "structures.h"
 
-std::string generateDrivers();
+std::string generateDrivers(std::string sequence);
 
 std::string generateTangent(
-    int currentOrder, int totalOrder, 
-    std::vector<Param> parameters
+    int currentOrder, 
+    std::string sequence,
+    std::string ADNested
 );
 
 std::string generateAdjoint(
-    int currentOrder, int totalOrder, 
-    std::vector<Param> parameters
+    int currentOrder, 
+    std::string sequence,
+    std::string ADNested
 );
 
 #endif
