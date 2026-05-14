@@ -5,7 +5,8 @@
 
 
 // Generate the parameters needed for a given order and sequence of AD
-std::vector<Param> generateParameters(int order, std::string sequence) {
+template <typename T>
+std::vector<Param<T>> generateParameters(int order, std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
     size_t yShape = cm.getYShape();
@@ -14,7 +15,7 @@ std::vector<Param> generateParameters(int order, std::string sequence) {
 
     // Base case
     if (order == 0 || sequence.empty()) {
-        std::vector<Param> base;
+        std::vector<Param<T>> base;
         // The original input X
         base.emplace_back(std::map<size_t, size_t>{}, std::deque<size_t>{xShape}, "X", ParamRole::Input);
         // The original output Y
@@ -25,7 +26,7 @@ std::vector<Param> generateParameters(int order, std::string sequence) {
     char curMode = sequence[0];
 
     // Recursive result
-    std::vector<Param> result = generateParameters(order - 1, sequence.substr(1));
+    std::vector<Param<T>> result = generateParameters(order - 1, sequence.substr(1));
 
     size_t currentSize = result.size();
     for (size_t i = 0; i < currentSize; i++) {
@@ -97,8 +98,8 @@ concept isADNestedType = requires(T x) {
 
 // Seed the nested AD type
 // Note: the initial call in the driver is done with empty coords
-template<typename ADNested>
-void seedAD(ADNested& x, Param& p, size_t curOrder, std::string& sequence, std::deque<size_t> coords) {
+template<typename ADNested, typename T>
+void seedAD(ADNested& x, Param<T>& p, size_t curOrder, std::string& sequence, std::deque<size_t> coords) {
     // Check if it ADNested is a valid AD nested type at compile time
     if constexpr (!isADNestedType<ADNested>) {
         if (curOrder == 0) {
@@ -132,8 +133,8 @@ void seedAD(ADNested& x, Param& p, size_t curOrder, std::string& sequence, std::
 }
 
 
-template<typename ADNested>
-void extractAD(ADNested& y, Param& p, size_t curOrder, std::string& sequence, std::deque<size_t> coords) {
+template<typename ADNested, typename T>
+void extractAD(ADNested& y, Param<T>& p, size_t curOrder, std::string& sequence, std::deque<size_t> coords) {
     // Check if it ADNested is a valid AD nested type at compile time
     if constexpr (!isADNestedType<ADNested>) {
         if (curOrder == 0) {
@@ -169,8 +170,8 @@ void extractAD(ADNested& y, Param& p, size_t curOrder, std::string& sequence, st
 
 
 // Seeds all parameters for a specific order/layer
-template<typename ADNested>
-void seedADForOrder(ADNested& x, std::vector<Param>& parameters, size_t curOrder, std::string& sequence) {
+template<typename ADNested, typename T>
+void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t curOrder, std::string& sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
 
@@ -185,8 +186,8 @@ void seedADForOrder(ADNested& x, std::vector<Param>& parameters, size_t curOrder
 
 
 // Extracts all values for a specific order/layer
-template<typename ADNested>
-void extractADForOrder(ADNested& y, std::vector<Param>& parameters, size_t curOrder, std::string& sequence) {
+template<typename ADNested, typename T>
+void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t curOrder, std::string& sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t yShape = cm.getXShape();
 
@@ -200,8 +201,8 @@ void extractADForOrder(ADNested& y, std::vector<Param>& parameters, size_t curOr
 }
 
 
-template<typename ADNested>
-void seedPrimal(ADNested& x, std::vector<Param> parameters) {
+template<typename ADNested, typename T>
+void seedPrimal(ADNested& x, std::vector<Param<T>> parameters) {
     // TODO: add loop here
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
@@ -220,8 +221,8 @@ void seedPrimal(ADNested& x, std::vector<Param> parameters) {
 }
 
 
-template<typename ADNested>
-void extractPrimal(ADNested& y, std::vector<Param> parameters) {
+template<typename ADNested, typename T>
+void extractPrimal(ADNested& y, std::vector<Param<T>> parameters) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t yShape = cm.getYShape();
 
@@ -288,4 +289,24 @@ std::string generateResetTapeString(std::string sequence) {
     }
 
     return result;
+}
+
+
+// Finds a specific parameter by name from a list of parameters
+template <typename T>
+Param<T> findParamByName(std::string targetName, std::deque<Param<T>> parameters) {
+    for (auto& p : parameters) {
+        if (p.name == targetName) {
+            return p;
+        }
+    }
+
+    return NULL;
+}
+
+
+// Calculates all the required Derivative Tensors of name F_{order}
+template<typename T>
+std::deque<Param<T>> getDerivatives(size_t order) {
+    return {};
 }

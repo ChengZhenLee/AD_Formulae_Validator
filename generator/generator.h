@@ -2,9 +2,9 @@
 #define GENERATOR_H
 
 
-#include "structures.h"
+#include <string>
 
-std::string generateDrivers(std::string sequence);
+void generateDrivers(std::string sequence);
 
 std::string generateTangent(
     int currentOrder, 

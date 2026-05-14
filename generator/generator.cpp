@@ -4,7 +4,8 @@
 #include "utils.h"
 
 
-std::string generateDrivers(std::ofstream& outFile, std::string sequence) {
+// Generate and writes all the necessary drivers into an output file
+void generateDrivers(std::ofstream& outFile, std::string sequence) {
     size_t order = sequence.length();
     std::string ADNested = generateNestedADType(order, sequence);
 
@@ -32,7 +33,8 @@ std::string generateTangent(size_t curOrder, std::string sequence, std::string A
     std::string subFunctionName = getCurrentLayerFunctionName(curOrder - 1);
 
     // Function signature
-    result += std::format("void {0}({1}& x, {1}& y, std::vector<Params> parameters) {{\n", 
+    result += "template <typename T>";
+    result += std::format("void {0}({1}& x, {1}& y, std::vector<Param<T>> parameters) {{\n", 
         functionName, ADNested);
 
     // Seed the primal values if it is the outer most order
@@ -78,7 +80,8 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string A
     std::string curADType = getCurrentLayerADType(ADNested, curOrder, sequence);
 
     // Function signature
-    result += std::format("void {0}({1}& x, {1}& y, std::vector<Params> parameters) {{\n", 
+    result += "template <typename T>";
+    result += std::format("void {0}({1}& x, {1}& y, std::vector<Param<T>> parameters) {{\n", 
         functionName, ADNested);
 
     // Seed the primal values if it is the outer most order
@@ -125,3 +128,20 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string A
 
     return result;
 }
+
+
+// Generate formula-based (manual) calculation driver for validation
+std::string generateFormulaDriver(std::ofstream& outFile, std::string sequence) {
+}
+
+
+// TODO: Generate main driver function that:
+// 1. generates the AD functions and calls them
+// 2. generates the Formula functions and calls them
+// 3. compares the outputs and prints out the results
+std::string generateMainDriver(std::ofstream& outFile, std::string sequence) {
+    // TODO: Implement comparison logic
+}
+
+
+// TODO: Generate validation function that compares AD results with formula results
