@@ -4,8 +4,36 @@
 
 
 template<typename T>
+void runFormulaDriver(std::string sequence, std::deque<Param<T>> parameters) {
+    // split parameters into input and outputs
+    std::deque<Param<T>> inputs = {};
+    std::deque<Param<T>> outputs = {};
+
+    for (Param<T>& p : parameters) {
+        if (p.role == ParamRole::Input) {
+            inputs.push_back(p);
+        } else if (p.role == ParamRole::Output) {
+            outputs.push_back(p);
+        }
+    }
+
+    // calculate the required Derivative functions (F_1, F_1_2, ...)
+    std::deque<Param<T>> derivatives = getDerivatives<T>(sequence.length(), sequence);
+
+    std::deque<Equation<T>> equations = {};
+
+    formulaDriver(sequence, equations, derivatives, inputs, outputs);
+}
+
+
+template<typename T>
 void formulaDriver(std::string sequence, std::deque<Equation<T>>& equations, const std::deque<Param<T>>& derivates, const std::deque<Param<T>>& inputs, std::deque<Param<T>>& outputs) {
-    if (sequence.length() == 0) return;
+    if (sequence.length() == 0) {
+        // TODO
+        // Calculate primal Y via the primal function
+
+        // Initialize equations with Y = F * X (using a dummy F value)
+    };
 
     for (size_t order = 0; order < sequence.length(); order++) {
         if (sequence[order] == 't') {

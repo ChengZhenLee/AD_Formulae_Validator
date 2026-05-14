@@ -305,8 +305,8 @@ Param<T> findParamByName(std::string targetName, std::deque<Param<T>> parameters
 }
 
 
-// Calculates all the required Derivative Tensors of name F_{order}
+// Calculates all the required Derivative Tensors of name F_{order} (F_1, F_1_2, ...)
 template<typename T>
-std::deque<Param<T>> getDerivatives(size_t order) {
+std::deque<Param<T>> getDerivatives(std::string sequence) {
     return {};
 }
