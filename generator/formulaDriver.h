@@ -34,6 +34,7 @@ void adjointMode(
     size_t order, 
     std::deque<Equation<T>>& equations, 
     const std::deque<Param<T>>& inputs,
+    std::deque<Param<T>>& outputs,
     std::deque<Param<T>>& derivatives
 );
 

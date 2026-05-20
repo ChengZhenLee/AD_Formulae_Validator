@@ -207,11 +207,6 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
 }
 
 
-// Generate formula-based (manual) calculation driver for validation
-std::string generateFormulaDriver(std::ofstream& outFile, std::string sequence) {
-}
-
-
 // TODO: Generate main driver function that:
 // 1. generates the AD functions and calls them
 // 2. generates the Formula functions and calls them

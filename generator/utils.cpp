@@ -1,6 +1,7 @@
 #include "configManager.h"
 #include "structures.h"
 #include <cstdlib>
+#include <stdexcept>
 #include <string>
 #include <format>
 #include <random>
@@ -98,6 +99,9 @@ template<typename T>
 std::vector<Param<T>> generateIdentity(size_t order, std::string sequence, const X_t<T>& x) {
     std::vector<Param<T>> parameters = generateParameters<T>(order, sequence);
 
+    // IDEA: for each layer of the sequence, find the highest order,
+    // and seed identities into the tensors that are multiplied with the highest derivative of F
+    // May require use of Equations<T> ?
     return parameters;
 }
 
@@ -341,12 +345,23 @@ std::string generateResetTapeString(std::string sequence) {
 
 // Finds a specific parameter by name from a list of parameters
 template <typename T>
-Param<T> findParamByName(std::string targetName, std::deque<Param<T>> parameters) {
+Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& parameters) {
     for (auto& p : parameters) {
         if (p.name == targetName) {
             return p;
         }
     }
 
-    return NULL;
+    throw std::runtime_error(std::format("Parameter not found: {}", targetName));
+}
+
+template <typename T>
+const Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<T>>& parameters) {
+    for (const auto& p : parameters) {
+        if (p.name == targetName) {
+            return p;
+        }
+    }
+
+    throw std::runtime_error(std::format("Parameter not found: {}", targetName));
 }

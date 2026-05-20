@@ -20,7 +20,7 @@ void runFormulaDriver(std::deque<Param<T>> parameters) {
     }
 
     // calculate the required Derivative functions (F_1, F_1_2, ...)
-    std::deque<Param<T>> derivatives = getDerivatives<T>(sequence.length(), sequence);
+    std::deque<Param<T>> derivatives = getDerivatives<T>(sequence);
 
     std::deque<Equation<T>> equations = {};
 
@@ -37,10 +37,10 @@ void formulaDriver(
     std::deque<Param<T>>& outputs) 
 {
     if (sequence.length() == 0) {
-        Param X = findParamByname("X", inputs);
-        Param Y = findParamByname("Y", outputs);
+        Param<T>& X = findParamByName("X", inputs);
+        Param<T>& Y = findParamByName("Y", outputs);
         // Dummy F variable
-        Param F = Param<T>({}, {}, "F", ParamRole::Input); 
+        Param<T> F = Param<T>({}, {}, "F", ParamRole::Input); 
 
         // Calculate primal Y via the primal function
         f(X.data, Y.data);
@@ -48,18 +48,18 @@ void formulaDriver(
         // Initialize equations with Y = F * X (using a dummy F value)
         Equation<T> newEquation = Equation<T>(Y);
         Monomial<T> newMonomial = Monomial<T>({Y, F});
-        newEquation.rightSide = newMonomial;
+        newEquation.rightSide.push_back(newMonomial);
 
         equations.push_back(newEquation);
     };
 
     for (size_t order = 0; order < sequence.length(); order++) {
         if (sequence[order] == 't') {
-            formulaDriver(sequence.substr(1, sequence.length() - 1), equations, inputs, outputs);
-            tangentMode(order, equations, inputs, derivatives);
+            formulaDriver(sequence.substr(1, sequence.length() - 1), equations, derivatives, inputs, outputs);
+            tangentMode(order, equations, inputs, outputs, derivatives);
         } else if (sequence[order] == 'a') {
-            formulaDriver(sequence.substr(1, sequence.length() - 1), equations, inputs, outputs);
-            adjointMode(order, equations, inputs, derivatives);
+            formulaDriver(sequence.substr(1, sequence.length() - 1), equations, derivatives, inputs, outputs);
+            adjointMode(order, equations, inputs, outputs, derivatives);
         }
     }
 }
@@ -115,7 +115,7 @@ void tangentMode(
                 }
 
                 // Compute product and store in new Monomial
-                equationSum += Tensor<T>::recProduct(productChain);
+                equationSum += Tensor<T>::product(productChain);
                 newEquation.rightSide.push_back(Monomial<T>(paramChain));
             }
         }
@@ -147,7 +147,7 @@ void adjointMode(
 
     // Find the names of the new outputs
     for (const Equation<T>& e : equations) {
-        for (const Monomial<T>& m : e.monomials) {
+        for (const Monomial<T>& m : e.rightSide) {
             for (const Param<T>& p : m.parameters) {
                 if (p.name[0] != 'F' && seen.find(p.name) == seen.end()) {
                     seen.insert(p.name);
@@ -159,7 +159,7 @@ void adjointMode(
 
     // Iterate over all the new outputs
     for (std::string& targetName : newOutputNames) {
-        Param<T> targetParam = findParamByName(targetName, outputs);
+        Param<T>& targetParam = findParamByName(targetName, outputs);
         Equation<T> newEquation = Equation(targetParam);
         Tensor<T> equationSum(targetParam.tensor.shape);
 
@@ -170,13 +170,13 @@ void adjointMode(
             for (Equation<T>&e : equations) {
                 Param<T> leftSide = e.leftSide;
 
-                for (Monomial<T>&m : e.monomials) {
+                for (Monomial<T>& m : e.rightSide) {
                     std::deque<Tensor<T>> productChain = {};
                     std::deque<Param<T>> paramChain = {};
                     std::string derivedName;
                     Param<T> derivedParam;
 
-                    for (Param<T>&p : m.parameters) {
+                    for (Param<T>& p : m.parameters) {
                         
                         if (p.name[0] == 'F') {
                             derivedName = std::format("{}_{}", p.name, order);
@@ -199,8 +199,8 @@ void adjointMode(
                     paramChain.push_back(derivedParam);
 
                     // Sum it into the new equation
-                    equationSum += Tensor<T>::recProduct(productChain);
-                    newEquation.rightSide.push_back(paramChain);
+                    equationSum += Tensor<T>::product(productChain);
+                    newEquation.rightSide.push_back(Monomial<T>(paramChain));
                 }
 
             }
@@ -213,13 +213,16 @@ void adjointMode(
 
                 // Only consider monomials where we have the original name
                 // e.g. for targetName == Y_1_2, we are only looking for Y_1 in the monomial
-                for (Monomial<T>& m : e.monomials) {
+                for (Monomial<T>& m : e.rightSide) {
                     std::deque<Tensor<T>> productChain = {};
                     std::deque<Param<T>> paramChain = {};
                     std::string derivedName;
                     Param<T> derivedParam;
                     bool found = false;
-                    std::string originalName = targetName.substr(0, targetName.length() - 2);
+                    size_t pos = targetName.find_last_of('_');
+                    std::string originalName = (pos == std::string::npos)
+                        ? targetName
+                        : targetName.substr(0, pos);
 
                     for (Param<T>& p : m.parameters) {
                         if (p.name == originalName) {
@@ -236,7 +239,7 @@ void adjointMode(
                             productChain.push_back(p.tensor);
                             paramChain.push_back(p);
                         } else {
-                            derivedName = std::format("{}_{}", leftSide, order);
+                            derivedName = std::format("{}_{}", leftSide.name, order);
                             derivedParam = findParamByName(derivedName, inputs);
                             productChain.push_back(derivedParam.tensor);
                             paramChain.push_back(derivedParam);
@@ -244,8 +247,8 @@ void adjointMode(
                     }
 
                     // Sum it into the new equation
-                    equationSum += Tensor<T>::recProduct(productChain);
-                    newEquation.rightSide.push_back(paramChain);
+                    equationSum += Tensor<T>::product(productChain);
+                    newEquation.rightSide.push_back(Monomial<T>(paramChain));
                 }
             }
         }

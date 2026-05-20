@@ -46,7 +46,12 @@ std::string generateRegisterInputString(size_t curOrder);
 std::string generateResetTapeString(std::string sequence);
 
 template<typename T>
-Param<T> findParamByName(std::string targetName, std::deque<Param<T>> parameters);
+Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& parameters);
 
+template<typename T>
+const Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<T>>& parameters);
+
+template<typename T>
+std::vector<Param<T>> getDerivatives(std::string sequence);
 
 #endif
