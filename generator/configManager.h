@@ -23,7 +23,9 @@ class ConfigManager{
         size_t getAdjointShape();
         size_t getXShape();
         size_t getYShape();
+        std::string getSequence();
         std::string getPrimalFunctionName();
+        
 };
 
 #endif

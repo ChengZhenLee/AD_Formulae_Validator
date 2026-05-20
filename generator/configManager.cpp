@@ -56,3 +56,9 @@ size_t ConfigManager::getYShape() {
 std::string ConfigManager::getPrimalFunctionName() {
     return config["f"];
 }
+
+
+// Returns the AD sequence
+std::string ConfigManager::getSequence() {
+    return config["sequence"];
+}

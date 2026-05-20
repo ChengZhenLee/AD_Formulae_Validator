@@ -1,12 +1,14 @@
 #include "configManager.h"
 #include "structures.h"
+#include <cstdlib>
 #include <string>
 #include <format>
+#include <random>
 
 
 // Generate the parameters needed for a given order and sequence of AD
 template <typename T>
-std::vector<Param<T>> generateParameters(int order, std::string sequence) {
+std::vector<Param<T>> generateParameters(size_t order, std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
     size_t yShape = cm.getYShape();
@@ -52,6 +54,51 @@ std::vector<Param<T>> generateParameters(int order, std::string sequence) {
     }
 
     return result;
+}
+
+
+// Initiialize the data of every parameters with random data
+template<typename T>
+std::vector<Param<T>> generateRandom(size_t order, std::string sequence, const X_t<T>& x) {
+    std::vector<Param<T>> parameters = generateParameters<T>(order, sequence);
+
+    // Setup a random engine
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Pick appropriate distribution depending on type T
+    typename std::conditional_t<std::is_floating_point_v<T>, 
+        std::uniform_real_distribution<T>, 
+        std::uniform_int_distribution<T>> dist(static_cast<T>(0), static_cast<T>(1));
+
+
+    for (Param<T> &p : parameters) {
+        // Properly initialize the primal input
+        if (p.name == "X") {
+            for (int i = 0; i < x.length(); i++) {
+                p.data[i] = x[i];
+            }
+        }
+
+        // Initialize parameters starting with "X"
+        else if (p.name.rfind("X", 0) == 0) {
+            for (int i = 0; i < p.length(); i++) {
+                p.data[i] = dist(gen);
+            }
+        }
+    }
+
+    return parameters;
+}
+
+
+// TODO
+// Initialize only relevant data with the identity matrix (for calculation of derivative tensors)
+template<typename T>
+std::vector<Param<T>> generateIdentity(size_t order, std::string sequence, const X_t<T>& x) {
+    std::vector<Param<T>> parameters = generateParameters<T>(order, sequence);
+
+    return parameters;
 }
 
 
@@ -241,7 +288,7 @@ void extractPrimal(ADNested& y, std::vector<Param<T>> parameters) {
 
 
 // Determine the current layer's AD type
-std::string getCurrentLayerADType(std::string ADNested, size_t curOrder, std::string sequence) {
+std::string getCurrentLayerADType(size_t curOrder, std::string sequence) {
     // adjoint over tangent -> 'at' -> order of adjoint is 2 -> 'a' -> A_t<double, U>
     // adjoint over tangent -> 'at' -> order of tangent is 1 -> 'at' -> T_t<A_t<double, U>, V>
     std::string subsequence = sequence.substr(0, sequence.length() - curOrder + 1);
@@ -302,11 +349,4 @@ Param<T> findParamByName(std::string targetName, std::deque<Param<T>> parameters
     }
 
     return NULL;
-}
-
-
-// Calculates all the required Derivative Tensors of name F_{order} (F_1, F_1_2, ...)
-template<typename T>
-std::deque<Param<T>> getDerivatives(std::string sequence) {
-    return {};
 }

@@ -5,7 +5,13 @@
 #include "structures.h"
 
 template<typename T>
-std::vector<Param<T>> generateParameters(int order, std::string sequence);
+std::vector<Param<T>> generateParameters(size_t order, std::string sequence);
+
+template<typename T>
+std::vector<Param<T>> generateRandom(size_t order, std::string sequence, const X_t<T>& x);
+
+template<typename T>
+std::vector<Param<T>> generateIdentity(size_t order, std::string sequence, const X_t<T>& x);
 
 std::string generateNestedADType(int order, std::string sequence);
 
@@ -31,7 +37,7 @@ void seedPrimal(ADNested& x, std::vector<Param<T>> parameters, std::vector<size_
 template<typename ADNested, typename T>
 void extractPrimal(ADNested& x, std::vector<Param<T>> parameters, std::vector<size_t> coords);
 
-std::string getCurrentLayerADType(std::string ADNested, size_t curOrder, std::string sequence);
+std::string getCurrentLayerADType(size_t curOrder, std::string sequence);
 
 std::string getCurrentLayerFunctionName(size_t curOrder);
 
@@ -42,7 +48,5 @@ std::string generateResetTapeString(std::string sequence);
 template<typename T>
 Param<T> findParamByName(std::string targetName, std::deque<Param<T>> parameters);
 
-template<typename T>
-std::deque<Param<T>> getDerivatives(size_t order);
 
 #endif
