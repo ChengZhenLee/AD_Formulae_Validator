@@ -13,11 +13,11 @@ std::vector<Param<T>> generateRandom(size_t order, std::string sequence, const X
 template<typename T>
 std::vector<Param<T>> generateIdentity(size_t order, std::string sequence, const X_t<T>& x);
 
-std::string generateNestedADType(int order, std::string sequence);
+std::string generateNestedADType(std::string sequence);
 
-std::string generateXNestedADType(int order, std::string sequence);
+std::string generateXNestedADType(std::string sequence);
 
-std::string generateYNestedADType(int order, std::string sequence);
+std::string generateYNestedADType(std::string sequence);
 
 template<typename ADNested, typename T>
 void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, std::vector<size_t> coords);
@@ -52,6 +52,6 @@ template<typename T>
 const Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<T>>& parameters);
 
 template<typename T>
-std::vector<Param<T>> getDerivatives(std::string sequence);
+std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>& x0, T h = static_cast<T>(1e-6));
 
 #endif

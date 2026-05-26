@@ -19,8 +19,15 @@ void runFormulaDriver(std::deque<Param<T>> parameters) {
         }
     }
 
-    // calculate the required Derivative functions (F_1, F_1_2, ...)
-    std::deque<Param<T>> derivatives = getDerivatives<T>(sequence);
+    // calculate the required Derivative functions (F_1, F_2, ...)
+    // Extract primal X from inputs
+    const Param<T>& Xparam = findParamByName<T>("X", inputs);
+    std::vector<T> x0;
+    x0.reserve(Xparam.tensor.data.size());
+    for (const auto &v : Xparam.tensor.data) x0.push_back(v);
+
+    std::vector<Param<T>> derivedVec = getDerivatives<T>(sequence, x0);
+    std::deque<Param<T>> derivatives(derivedVec.begin(), derivedVec.end());
 
     std::deque<Equation<T>> equations = {};
 
@@ -92,29 +99,48 @@ void tangentMode(
                 std::deque<Param<T>> paramChain = {};
 
                 // Handle the derivative of the i-th parameter
-                // The inputs should also include for example F_1_2 for the second order derivative Hessian
+                // The derivatives (F_k) are provided in the 'derivatives' list
                 std::string derivedName = std::format("{}_{}", m.parameters[i].name, order);
-                Param<T> derivedParam = findParamByName(derivedName, inputs);
+                Param<T> derivedParam = findParamByName(derivedName, derivatives);
+
+                bool insertPrimalAfterDerived = false;
+                Param<T> derivedPrimal;
+                if (derivedName.front() == 'F') {
+                    insertPrimalAfterDerived = true;
+                    // The derived primal X_order may exist either in the derivatives
+                    // (if generated) or in the original inputs; try derivatives first,
+                    // then fallback to inputs.
+                    try {
+                        derivedPrimal = findParamByName(std::format("X_{}", order), derivatives);
+                    } catch (...) {
+                        derivedPrimal = findParamByName(std::format("X_{}", order), inputs);
+                    }
+                }
 
                 // Build the Monomial: [F_higher, params..., derivedParam]
+                // If the differentiated parameter is an F-term, insert X_order right after it.
                 for (size_t j = 0; j < m.parameters.size(); ++j) {
                     if (i == j) {
                         productChain.push_back(derivedParam.tensor);
                         paramChain.push_back(derivedParam);
+                        if (insertPrimalAfterDerived) {
+                            productChain.push_back(derivedPrimal.tensor);
+                            paramChain.push_back(derivedPrimal);
+                        }
                     } else {
                         productChain.push_back(m.parameters[j].tensor);
                         paramChain.push_back(m.parameters[j]);
                     }
                 }
 
-                // If deriving the Derivative function F_{order}, we need to add the derived primal e.g. X_2 for F_1_2
-                if (derivedName.front() == 'F') {
-                    Param<T> derivedPrimal = findParamByName(std::format("X_{}", order), derivatives);
-                    productChain.push_back(derivedPrimal.tensor);
-                    paramChain.push_back(derivedPrimal);
+                // Validate product chain order and resulting shape before computing product
+                std::deque<size_t> resultShape = Tensor<T>::productShape(productChain);
+                if (resultShape.empty()) {
+                    throw std::runtime_error(std::format("Invalid tensor chain order when building monomial in tangentMode: {} tensors; adjacent shapes were not contractable", productChain.size()));
                 }
-
-                // Compute product and store in new Monomial
+                if (resultShape != derivedParam.tensor.shape) {
+                    throw std::runtime_error("Tensor chain result shape does not match derivedParam shape for tangentMode");
+                }
                 equationSum += Tensor<T>::product(productChain);
                 newEquation.rightSide.push_back(Monomial<T>(paramChain));
             }
@@ -198,7 +224,14 @@ void adjointMode(
                     productChain.push_back(derivedParam.tensor);
                     paramChain.push_back(derivedParam);
 
-                    // Sum it into the new equation
+                    // Validate product chain order and resulting shape before computing product
+                    std::deque<size_t> resultShape = Tensor<T>::productShape(productChain);
+                    if (resultShape.empty()) {
+                        throw std::runtime_error(std::format("Invalid tensor chain order when building X_{} in adjointMode: {} tensors; adjacent shapes were not contractable", order, productChain.size()));
+                    }
+                    if (resultShape != targetParam.tensor.shape) {
+                        throw std::runtime_error(std::format("Tensor chain result shape does not match targetParam shape for X_{}", order));
+                    }
                     equationSum += Tensor<T>::product(productChain);
                     newEquation.rightSide.push_back(Monomial<T>(paramChain));
                 }
@@ -246,7 +279,14 @@ void adjointMode(
                         }
                     }
 
-                    // Sum it into the new equation
+                    // Validate product chain order and resulting shape before computing product
+                    std::deque<size_t> resultShape = Tensor<T>::productShape(productChain);
+                    if (resultShape.empty()) {
+                        throw std::runtime_error(std::format("Invalid tensor chain order when building {} in adjointMode: {} tensors; adjacent shapes were not contractable", targetName, productChain.size()));
+                    }
+                    if (resultShape != targetParam.tensor.shape) {
+                        throw std::runtime_error(std::format("Tensor chain result shape does not match targetParam shape for {}", targetName));
+                    }
                     equationSum += Tensor<T>::product(productChain);
                     newEquation.rightSide.push_back(Monomial<T>(paramChain));
                 }

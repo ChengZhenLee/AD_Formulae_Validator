@@ -1,11 +1,11 @@
 #ifndef FORMULADRIVER_H
 #define FORMULADRIVER_H
 
-#include <format>
 #include "structures.h"
 #include "utils.h"
 #include "configManager.h"
 #include "user_function.h"
+#include <format>
 
 
 template<typename T>

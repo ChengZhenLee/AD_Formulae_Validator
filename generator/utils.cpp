@@ -3,8 +3,10 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
-#include <format>
 #include <random>
+#include <format>
+#include "user_function.h"
+#include <cmath>
 
 
 // Generate the parameters needed for a given order and sequence of AD
@@ -29,7 +31,7 @@ std::vector<Param<T>> generateParameters(size_t order, std::string sequence) {
     char curMode = sequence[0];
 
     // Recursive result
-    std::vector<Param<T>> result = generateParameters(order - 1, sequence.substr(1));
+    std::vector<Param<T>> result = generateParameters<T>(order - 1, sequence.substr(1));
 
     size_t currentSize = result.size();
     for (size_t i = 0; i < currentSize; i++) {
@@ -38,7 +40,7 @@ std::vector<Param<T>> generateParameters(size_t order, std::string sequence) {
         std::map<size_t, size_t> newOShape = p.orderedShape;
         std::deque<size_t> newShapes = p.tensor.shape;
         ParamRole newRole = p.role;
-        std::string newName = std::format("{}_{}", p.name, std::to_string(order));
+        std::string newName = format("{}_{}", p.name, std::to_string(order));
 
         if (curMode == 't') {
             newShapes.push_back(V);
@@ -93,16 +95,80 @@ std::vector<Param<T>> generateRandom(size_t order, std::string sequence, const X
 }
 
 
-// TODO
-// Initialize only relevant data with the identity matrix (for calculation of derivative tensors)
+// Calculate derivatives using finite differences
 template<typename T>
-std::vector<Param<T>> generateIdentity(size_t order, std::string sequence, const X_t<T>& x) {
-    std::vector<Param<T>> parameters = generateParameters<T>(order, sequence);
+std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>& x0, T h) {
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t order = sequence.length();
 
-    // IDEA: for each layer of the sequence, find the highest order,
-    // and seed identities into the tensors that are multiplied with the highest derivative of F
-    // May require use of Equations<T> ?
-    return parameters;
+    std::vector<Param<T>> derivatives;
+
+    size_t xShape = cm.getXShape();
+    size_t yShape = cm.getYShape();
+
+    if (x0.size() < xShape) {
+        throw std::runtime_error("Primal x vector too small for derivative computation");
+    }
+
+    auto eval_f = [&](const std::vector<T>& x)->std::vector<T> {
+        std::vector<T> y(yShape);
+        f<T>(const_cast<std::vector<T>&>(x), y);
+        return y;
+    };
+
+    if (order >= 1) {
+        for (size_t k = 1; k <= order; ++k) {
+            std::deque<size_t> shape;
+            shape.push_back(yShape);
+            for (size_t t = 0; t < k; ++t) shape.push_back(xShape);
+
+            Param<T> pk(std::map<size_t, size_t>{}, shape, std::format("F_{}", k), ParamRole::Input);
+
+            std::vector<size_t> idx(k, 0);
+
+            auto compute_and_store = [&](const std::vector<size_t>& idx) {
+                std::vector<T> acc(yShape, static_cast<T>(0));
+                size_t combos = 1u << k;
+                for (size_t mask = 0; mask < combos; ++mask) {
+                    T prod_sign = static_cast<T>(1);
+                    std::vector<T> x_shift = x0;
+                    for (size_t t = 0; t < k; ++t) {
+                        int s = ((mask >> t) & 1) ? 1 : -1;
+                        prod_sign *= static_cast<T>(s);
+                        x_shift[idx[t]] += static_cast<T>(s) * h;
+                    }
+                    std::vector<T> y_shift = eval_f(x_shift);
+                    for (size_t j = 0; j < yShape; ++j) acc[j] += prod_sign * y_shift[j];
+                }
+
+                T denom = std::pow(static_cast<T>(2), static_cast<T>(k)) * std::pow(h, static_cast<T>(k));
+                for (size_t j = 0; j < yShape; ++j) acc[j] /= denom;
+
+                for (size_t j = 0; j < yShape; ++j) {
+                    std::deque<size_t> coords;
+                    coords.push_back(j);
+                    for (size_t t = 0; t < k; ++t) coords.push_back(idx[t]);
+                    size_t index = pk.tensor.getIndex(coords);
+                    pk.tensor.data[index] = acc[j];
+                }
+            };
+
+            bool done = false;
+            while (!done) {
+                compute_and_store(idx);
+                for (size_t pos = 0; pos < k; ++pos) {
+                    if (++idx[pos] < xShape) break;
+                    idx[pos] = 0;
+                    if (pos == k - 1) done = true;
+                }
+                if (k == 0) break;
+            }
+
+            derivatives.push_back(std::move(pk));
+        }
+    }
+
+    return derivatives;
 }
 
 
@@ -295,7 +361,7 @@ void extractPrimal(ADNested& y, std::vector<Param<T>> parameters) {
 std::string getCurrentLayerADType(size_t curOrder, std::string sequence) {
     // adjoint over tangent -> 'at' -> order of adjoint is 2 -> 'a' -> A_t<double, U>
     // adjoint over tangent -> 'at' -> order of tangent is 1 -> 'at' -> T_t<A_t<double, U>, V>
-    std::string subsequence = sequence.substr(0, sequence.length() - curOrder + 1);
+    std::string subsequence = sequence.substr(0, curOrder + 1);
     return generateNestedADType(subsequence);
 }
 
@@ -313,10 +379,10 @@ std::string getCurrentLayerFunctionName(size_t curOrder) {
 std::string generateRegisterInputString(size_t curOrder) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
-    std::string result = "\tfor (size_t i = 0; i < xShape; i++) {{\n";
+    std::string result = std::format("\tfor (size_t i = 0; i < {}; i++) {{\n", xShape);
 
-    std::string xVariable = "x(i)";
-    for (int i = 0; i < curOrder - 1; i++) {
+    std::string xVariable = "x[i]";
+    for (int i = 1; i < curOrder - 1; i++) {
         xVariable += ".value()";
     }
 
@@ -335,7 +401,7 @@ std::string generateResetTapeString(std::string sequence) {
     for (int i = 0; i < sequence.length(); i++) {
         if (sequence[i] == 'a') {
             curSubstring = sequence.substr(0, i + 1);
-            result += std::format("{}::tape::reset();\n", generateNestedADType(curSubstring));
+            result += std::format("\t{}::tape::reset();\n", generateNestedADType(curSubstring));
         }
     }
 

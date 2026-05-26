@@ -6,31 +6,31 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add the executable with all source files
-add_executable(ADValidator
-    main.cpp
-    lighthouse/1/fd.cpp
-    lighthouse/1/va.cpp
-    lighthouse/1/vt.cpp
-    lighthouse/2/vasa.cpp
-    lighthouse/2/vast.cpp
-    lighthouse/2/vava.cpp
-    lighthouse/2/vavt.cpp
-    lighthouse/2/vtva.cpp
-    lighthouse/2/vtvt.cpp
-    lighthouse/3/vasasa.cpp
-    lighthouse/3/vasast.cpp
-    lighthouse/3/vastsa.cpp
-    lighthouse/3/vastst.cpp
-    lighthouse/3/vtvasa.cpp
-    lighthouse/3/vtvast.cpp
-    lighthouse/3/vtvtva.cpp
-    lighthouse/3/vtvtvt.cpp
-    lighthouse/4/vtvtvtvt.cpp
-)
+option(BUILD_TESTS "Build unit tests" ON)
 
-# Include the headers
-target_include_directories(ADValidator PRIVATE
+# Build a generator library from the generator folder
+file(GLOB GENERATOR_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/generator/*.cpp"
+)
+add_library(generator_lib STATIC ${GENERATOR_SRCS})
+
+# Copy the generator folder into the build
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/generator DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+target_include_directories(generator_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/generator
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ad
-    ${CMAKE_CURRENT_SOURCE_DIR}/lighthouse
 )
+
+# Main executable (minimal runner for generator-focused builds)
+add_executable(ADValidator main.cpp)
+target_link_libraries(ADValidator PRIVATE generator_lib)
+
+# Unit tests
+if(BUILD_TESTS)
+    enable_testing()
+    add_executable(generator_tests tests/generator_tests.cpp)
+    target_link_libraries(generator_tests PRIVATE generator_lib)
+    add_test(NAME generator_tests COMMAND generator_tests)
+endif()

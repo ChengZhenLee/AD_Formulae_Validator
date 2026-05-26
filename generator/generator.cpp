@@ -1,18 +1,18 @@
-#include <format>
 #include <fstream>
 #include "generator.h"
 #include "utils.h"
 #include "configManager.h"
+#include <format>
 
 
 // Generate the header file
 void generateADHeader() {
-    std::ofstream outFile("adDrivers.h");
+    std::ofstream outFile("generator/adDrivers.h");
     ConfigManager cm = ConfigManager::getInstance();
     std::string sequence = cm.getSequence();
     size_t order = sequence.length();
-    std::string XADNested = generateXNestedADType(order, sequence);
-    std::string YADNested = generateYNestedADType(order, sequence);
+    std::string XADNested = generateXNestedADType(sequence);
+    std::string YADNested = generateYNestedADType(sequence);
     std::string result = "";
 
     // Include the defines
@@ -22,17 +22,16 @@ void generateADHeader() {
 
     // Include the required headers
     result += "#include \"structures.h\"\n";
-    result += "#include \"ad.h\"\n";
-    result += "#include \"types.h\"\n";
-    result += "#include \"utils.h\"\n";
     result += "\n";
 
     // Include the functions
-    result += "std::vector<Param<T>> runDrivers(std::string mode, X_t<T>& x); \n";
+    result += "template <typename T>\n";
+    result += "std::vector<Param<T>> runADDrivers(std::string mode, X_t<T>& x); \n\n";
     for (size_t i = 0; i < order; i++) {
-        result += std::format(
-            "void {0}({1}& x, {2}& y, std::vector<Param<T>> parameters); \n", 
-            getCurrentLayerFunctionName(i + 1), XADNested, YADNested);
+            result += "template <typename T>\n";
+            result += std::format(
+                "void {0}({1}& x, {2}& y, std::vector<Param<T>> parameters); \n\n", 
+                getCurrentLayerFunctionName(i + 1), XADNested, YADNested);
     }
 
     result += "\n#endif\n";
@@ -45,17 +44,19 @@ void generateADHeader() {
 
 // Generate and writes all the necessary drivers into an output file
 void generateADDrivers() {
-    std::ofstream outFile("adDrivers.cpp");
+    std::ofstream outFile("generator/adDrivers.cpp");
 
     ConfigManager cm = ConfigManager::getInstance();
     std::string sequence = cm.getSequence();
 
     size_t order = sequence.length();
-    std::string XADNested = generateXNestedADType(order, sequence);
-    std::string YADNested = generateYNestedADType(order, sequence);
+    std::string XADNested = generateXNestedADType(sequence);
+    std::string YADNested = generateYNestedADType(sequence);
 
     // Write the includes
-    outFile << "#include \"adDriver.h\"\n";
+    outFile << "#include \"adDrivers.h\"\n";
+    outFile << "#include \"structures.h\"\n";
+    outFile << "\n\n";
 
     for (int i = 0; i < order; i++) {
         if (sequence[i] == 't') {
@@ -81,24 +82,24 @@ std::string generateInterface(std::string sequence, std::string XADNested, std::
 
     // Code to seed the parameters
     result += "template<typename T> \n";
-    result += "std::vector<Param<T>> runDrivers(std::string mode, X_t<T>& x) {{\n";
+    result += "std::vector<Param<T>> runADDrivers(std::string mode, X_t<T>& x_input) {\n";
     result += "\tstd::vector<Param<T>> parameters; \n";
-    result += "\tif (mode == \"random\") {{\n";
-    result += std::format("\t\tparameters = generateRandom({}, x); \n", sequence);
-    result += "\t}} else if (mode == \"identity\") {{ \n";
-    result += std::format("\t\tparameters = generateIdentity({}, x); \n", sequence);
-    result += "\t}}\n";
+    result += "\tif (mode == \"random\") {\n";
+    result += std::format("\t\tparameters = generateRandom({}, x_input); \n", sequence.size());
+    result += "\t} else if (mode == \"identity\") { \n";
+    result += std::format("\t\tparameters = generateIdentity({}, x_input); \n", sequence.size());
+    result += "\t}\n";
 
     // Initialize the AD types 
     result += std::format("\t{} x;\n", XADNested);
-    result += std::format("\t{} y;\n", YADNested);
+    result += format("\t{} y;\n", YADNested);
 
     // Run the drivers
     result += std::format("\t{}(x, y, parameters);\n", functionName);
 
     // Return the parameters
     result += "\treturn parameters;\n";
-    result += "}}\n";
+    result += "}\n";
 
     return result;
 }
@@ -110,7 +111,7 @@ std::string generateTangent(size_t curOrder, std::string sequence, std::string X
     std::string subFunctionName = getCurrentLayerFunctionName(curOrder - 1);
 
     // Function signature
-    result += "template <typename T>";
+    result += "template <typename T>\n";
     result += std::format("void {0}({1}& x, {2}& y, std::vector<Param<T>> parameters) {{\n", 
         functionName, XADNested, YADNested);
 
@@ -121,7 +122,7 @@ std::string generateTangent(size_t curOrder, std::string sequence, std::string X
     }
     
     // Seed values
-    result += std::format("\tseedADForOrder(x, parameters, {}, {});\n",
+    result += std::format("\tseedADForOrder(x, parameters, {}, \"{}\");\n",
         curOrder, sequence);
 
     // Run the lower layer function
@@ -129,13 +130,14 @@ std::string generateTangent(size_t curOrder, std::string sequence, std::string X
     if (curOrder == 1) {
         result += std::format("\t{}(x, y);\n", 
             subFunctionName);
+    } else {
+        result += std::format("\t{}(x, y, parameters);\n",
+            subFunctionName);
     }
-    result += std::format("\t{}(x, y, parameters);\n",
-        subFunctionName);
 
     // Extract
-    result += std::format("\textractADForOrder({}& y, parameters, {}, {});\n",
-        YADNested, curOrder, sequence);
+    result += std::format("\textractADForOrder(y, parameters, {}, \"{}\");\n",
+        curOrder, sequence);
     
     // Extract primal values if it is the last layer
     if (curOrder == 1) {
@@ -144,7 +146,7 @@ std::string generateTangent(size_t curOrder, std::string sequence, std::string X
     }
 
     // Close the function
-    result += std::format("}}\n");
+    result += "}\n";
 
     return result;
 }
@@ -157,7 +159,7 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
     std::string curADType = getCurrentLayerADType(curOrder, sequence);
 
     // Function signature
-    result += "template <typename T>";
+    result += "template <typename T>\n";
     result += std::format("void {0}({1}& x, {2}& y, std::vector<Param<T>> parameters) {{\n", 
         functionName, XADNested, YADNested);
 
@@ -175,20 +177,21 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
     if (curOrder == 1) {
         result += std::format("\t{}(x, y);\n", 
             subFunctionName);
+    } else {
+        result += std::format("\t{}(x, y, parameters);\n",
+            subFunctionName);
     }
-    result += std::format("\t{}(x, y, parameters);\n",
-        subFunctionName);
 
     // Seed values
-    result += std::format("\tseedADForOrder(x, parameters, {}, {});\n",
+    result += std::format("\tseedADForOrder(x, parameters, {}, \"{}\");\n",
         curOrder, sequence);
 
     // Interpret
     result += std::format("\t{}::tape::interpret();\n", curADType);
     
     // Extract
-    result += std::format("\textractADForOrder({}& y, parameters, {}, {});\n",
-        YADNested, curOrder, sequence);
+    result += std::format("\textractADForOrder(y, parameters, {}, \"{}\");\n",
+        curOrder, sequence);
     
     // Extract primal values if it is the last layer
     if (curOrder == 1) {
@@ -201,7 +204,7 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
         result += generateResetTapeString(sequence);
     }
 
-    result += "}}\n";
+    result += "}\n";
 
     return result;
 }

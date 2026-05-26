@@ -15,14 +15,14 @@ std::string generateInterface(
 );
 
 std::string generateTangent(
-    int currentOrder, 
+    size_t currentOrder, 
     std::string sequence,
     std::string XADNested,
     std::string YADNested
 );
 
 std::string generateAdjoint(
-    int currentOrder, 
+    size_t currentOrder, 
     std::string sequence,
     std::string XADNested,
     std::string YADNested
