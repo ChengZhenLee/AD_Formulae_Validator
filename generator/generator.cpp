@@ -6,8 +6,8 @@
 
 
 // Generate the header file
-void generateADHeader() {
-    std::ofstream outFile("generator/adDrivers.h");
+void generateADHeader(std::string filename) {
+    std::ofstream outFile(filename);
     ConfigManager cm = ConfigManager::getInstance();
     std::string sequence = cm.getSequence();
     size_t order = sequence.length();
@@ -43,8 +43,8 @@ void generateADHeader() {
 
 
 // Generate and writes all the necessary drivers into an output file
-void generateADDrivers() {
-    std::ofstream outFile("generator/adDrivers.cpp");
+void generateADDrivers(std::string filename) {
+    std::ofstream outFile(filename);
 
     ConfigManager cm = ConfigManager::getInstance();
     std::string sequence = cm.getSequence();
@@ -56,6 +56,7 @@ void generateADDrivers() {
     // Write the includes
     outFile << "#include \"adDrivers.h\"\n";
     outFile << "#include \"structures.h\"\n";
+    outFile << "#include \"user_function.h\"";
     outFile << "\n\n";
 
     for (int i = 0; i < order; i++) {
@@ -69,11 +70,25 @@ void generateADDrivers() {
     }
 
     outFile << generateInterface(sequence, XADNested, YADNested);
+    outFile << "\n";
 
+    outFile << generateMain(sequence);
     outFile.close();
 }
 
 
+// TODO: Generate main function that:
+// 1. reads a file of tensors 
+// 2. calls the AD functions
+// 3. writes the tensors to the output file
+std::string generateMain(std::string sequence) {
+    // TODO: Implement comparison logic
+    std::string result = "";
+    return result;
+}
+
+
+// Generates the function to be called by the main function
 std::string generateInterface(std::string sequence, std::string XADNested, std::string YADNested) {
     // void runDrivers(std::string mode)
     size_t order = sequence.length();
@@ -208,15 +223,3 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
 
     return result;
 }
-
-
-// TODO: Generate main driver function that:
-// 1. generates the AD functions and calls them
-// 2. generates the Formula functions and calls them
-// 3. compares the outputs and prints out the results
-std::string generateMainDriver(std::ofstream& outFile, std::string sequence) {
-    // TODO: Implement comparison logic
-}
-
-
-// TODO: Generate validation function that compares AD results with formula results

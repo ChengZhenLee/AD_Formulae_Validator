@@ -4,9 +4,9 @@
 
 #include <string>
 
-void generateADHeader();
+void generateADHeader(std::string filename);
 
-void generateADDrivers();
+void generateADDrivers(std::string filename);
 
 std::string generateInterface(
     std::string sequence, 
@@ -26,6 +26,10 @@ std::string generateAdjoint(
     std::string sequence,
     std::string XADNested,
     std::string YADNested
+);
+
+std::string generateMain(
+    std::string sequence
 );
 
 #endif

@@ -11,12 +11,13 @@
 
 // Generate the parameters needed for a given order and sequence of AD
 template <typename T>
-std::vector<Param<T>> generateParameters(size_t order, std::string sequence) {
+std::vector<Param<T>> generateParameters(std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
     size_t yShape = cm.getYShape();
     size_t V = cm.getTangentShape();
     size_t U = cm.getAdjointShape();
+    size_t order = sequence.size();
 
     // Base case
     if (order == 0 || sequence.empty()) {
@@ -60,33 +61,40 @@ std::vector<Param<T>> generateParameters(size_t order, std::string sequence) {
 }
 
 
-// Initiialize the data of every parameters with random data
+// Initiialize the seed of every parameter with random data
 template<typename T>
-std::vector<Param<T>> generateRandom(size_t order, std::string sequence, const X_t<T>& x) {
-    std::vector<Param<T>> parameters = generateParameters<T>(order, sequence);
+std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x) {
+    std::vector<Param<T>> parameters = generateParameters<T>(sequence);
 
     // Setup a random engine
     std::random_device rd;
     std::mt19937 gen(rd());
 
     // Pick appropriate distribution depending on type T
-    typename std::conditional_t<std::is_floating_point_v<T>, 
+    using DistributionType = std::conditional_t<
+        std::is_floating_point_v<T>, 
         std::uniform_real_distribution<T>, 
-        std::uniform_int_distribution<T>> dist(static_cast<T>(0), static_cast<T>(1));
+        std::uniform_int_distribution<T>
+    >;
 
+    DistributionType dist(
+        static_cast<T>(std::min_element(x.begin(), x.end())), 
+        static_cast<T>(std::max_element(x.begin(), x.end()))
+    );
 
     for (Param<T> &p : parameters) {
         // Properly initialize the primal input
         if (p.name == "X") {
-            for (int i = 0; i < x.length(); i++) {
-                p.data[i] = x[i];
+            p.tensor.data.resize(x.size());
+            for (int i = 0; i < x.size(); i++) {
+                p.tensor.data[i] = x[i];
             }
         }
 
         // Initialize parameters starting with "X"
         else if (p.name.rfind("X", 0) == 0) {
-            for (int i = 0; i < p.length(); i++) {
-                p.data[i] = dist(gen);
+            for (int i = 0; i < p.tensor.data.size(); i++) {
+                p.tensor.data[i] = dist(gen);
             }
         }
     }

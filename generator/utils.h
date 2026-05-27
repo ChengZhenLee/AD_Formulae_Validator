@@ -5,10 +5,10 @@
 #include "structures.h"
 
 template<typename T>
-std::vector<Param<T>> generateParameters(size_t order, std::string sequence);
+std::vector<Param<T>> generateParameters(std::string sequence);
 
 template<typename T>
-std::vector<Param<T>> generateRandom(size_t order, std::string sequence, const X_t<T>& x);
+std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x);
 
 template<typename T>
 std::vector<Param<T>> generateIdentity(size_t order, std::string sequence, const X_t<T>& x);

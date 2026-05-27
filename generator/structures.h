@@ -7,8 +7,7 @@
 #include <sstream>
 #include <map>
 #include <algorithm>
-#include <limits>
-#include <cmath>
+#include <nlohmann/json.hpp>
 #include "ad.h"
 
 
@@ -28,12 +27,15 @@ using X_t=std::deque<T>;
 template<typename T>
 using Y_t=std::deque<T>;
 
-// Serialized Tensor
+// Vectorized Tensor
 template<typename T>
 struct Tensor {
     std::vector<T> data;
     std::deque<size_t> shape;
     std::vector<size_t> strides;
+
+    // Macro to define to_json() and from_json()
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Tensor, data, shape, strides)
 
     // Initializer
     Tensor(std::deque<size_t> dims) : 
@@ -248,23 +250,6 @@ struct Tensor {
         return result;
     }
 
-
-    static bool compareTensors(
-        const Tensor<T>& a, const Tensor<T>& b,
-        double tolerance = std::numeric_limits<T>::epsilon()
-    ) {
-        if (a.shape != b.shape) return false;
-
-        size_t length = a.data.size();
-
-        for (size_t i = 0; i < length; i++) {
-            if (std::abs(static_cast<double>(a.data[i]) - static_cast<double>(b.data[i])) > tolerance)
-                return false;
-        }
-
-        return true;
-    }
-
     // Validate that a deque of tensors can be multiplied left-to-right
     static bool validateTensorChain(const std::deque<Tensor<T>>& chain) {
         if (chain.size() < 2) return true;
@@ -279,6 +264,11 @@ struct Tensor {
 
 enum class ParamRole { Input, Output };
 
+NLOHMANN_JSON_SERIALIZE_ENUM(ParamRole, {
+    {ParamRole::Input, "INPUT"},
+    {ParamRole::Output, "OUTPUT"},
+});
+
 // Input parameters for AD and Formula functions
 template<typename T>
 struct Param {
@@ -288,6 +278,9 @@ struct Param {
     std::vector<int> activeOrders = {};
     std::map<size_t, size_t> orderedShape;
     int highestOrder = 0;
+
+    // Macro automatically generates to_json() and from_json()
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Param, tensor, name, role, activeOrders, orderedShape, highestOrder)
 
     Param(std::map<size_t, size_t> oShape, std::deque<size_t> shape, std::string inputName, ParamRole inputRole) 
         : orderedShape(oShape), tensor(shape), name(inputName), role(inputRole) {
