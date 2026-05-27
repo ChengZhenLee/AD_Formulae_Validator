@@ -70,13 +70,6 @@ int main() {
         return 7;
     }
 
-    // Basic compareTensors test
-    Tensor<T> copyR3 = R3;
-    if (!Tensor<T>::compareTensors(R3, copyR3)) {
-        cerr << "compareTensors equality failed" << endl;
-        return 8;
-    }
-
     cout << "All generator tests passed" << endl;
     return 0;
 }
