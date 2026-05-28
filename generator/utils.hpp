@@ -1,13 +1,24 @@
-#include "configManager.h"
-#include "structures.h"
-#include <cstdlib>
-#include <stdexcept>
-#include <string>
-#include <random>
-#include <format>
-#include "user_function.h"
-#include <cmath>
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
+#include "structures.h"
+#include "configManager.h"
+#include <algorithm>
+#include <cmath>
+#include <format>
+#include <random>
+#include <stdexcept>
+#include <type_traits>
+
+// Nested AD types must have a .value() member
+template<typename T, typename = void>
+struct has_value_member : std::false_type {};
+
+template<typename T>
+struct has_value_member<T, std::void_t<decltype(std::declval<T>().value())>> : std::true_type {};
+
+template<typename T>
+inline constexpr bool isADNestedType = has_value_member<T>::value;
 
 // Generate the parameters needed for a given order and sequence of AD
 template <typename T>
@@ -22,26 +33,21 @@ std::vector<Param<T>> generateParameters(std::string sequence) {
     // Base case
     if (order == 0 || sequence.empty()) {
         std::vector<Param<T>> base;
-        // The original input X
         base.emplace_back(std::map<size_t, size_t>{}, std::deque<size_t>{xShape}, "X", ParamRole::Input);
-        // The original output Y
         base.emplace_back(std::map<size_t, size_t>{}, std::deque<size_t>{yShape}, "Y", ParamRole::Output);
         return base;
     }
 
     char curMode = sequence[0];
-
-    // Recursive result
-    std::vector<Param<T>> result = generateParameters<T>(order - 1, sequence.substr(1));
+    std::vector<Param<T>> result = generateParameters<T>(sequence.substr(1));
 
     size_t currentSize = result.size();
     for (size_t i = 0; i < currentSize; i++) {
         Param p = result[i];
-
         std::map<size_t, size_t> newOShape = p.orderedShape;
         std::deque<size_t> newShapes = p.tensor.shape;
         ParamRole newRole = p.role;
-        std::string newName = format("{}_{}", p.name, std::to_string(order));
+        std::string newName = std::format("{}_{}", p.name, std::to_string(order));
 
         if (curMode == 't') {
             newShapes.push_back(V);
@@ -49,8 +55,6 @@ std::vector<Param<T>> generateParameters(std::string sequence) {
         } else if (curMode == 'a') {
             newShapes.push_front(U);
             newOShape[order] = U;
-
-            // In adjoint mode, swap inputs to outputs and vice versa
             newRole = (p.role == ParamRole::Input) ? ParamRole::Output : ParamRole::Input;
         }
 
@@ -60,39 +64,31 @@ std::vector<Param<T>> generateParameters(std::string sequence) {
     return result;
 }
 
-
-// Initiialize the seed of every parameter with random data
+// Initialize the seed of every parameter with random data
 template<typename T>
 std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x) {
     std::vector<Param<T>> parameters = generateParameters<T>(sequence);
-
-    // Setup a random engine
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    // Pick appropriate distribution depending on type T
     using DistributionType = std::conditional_t<
-        std::is_floating_point_v<T>, 
-        std::uniform_real_distribution<T>, 
+        std::is_floating_point_v<T>,
+        std::uniform_real_distribution<T>,
         std::uniform_int_distribution<T>
     >;
 
     DistributionType dist(
-        static_cast<T>(std::min_element(x.begin(), x.end())), 
-        static_cast<T>(std::max_element(x.begin(), x.end()))
+        static_cast<T>(*std::min_element(x.begin(), x.end())),
+        static_cast<T>(*std::max_element(x.begin(), x.end()))
     );
 
-    for (Param<T> &p : parameters) {
-        // Properly initialize the primal input
+    for (Param<T>& p : parameters) {
         if (p.name == "X") {
             p.tensor.data.resize(x.size());
             for (int i = 0; i < x.size(); i++) {
                 p.tensor.data[i] = x[i];
             }
-        }
-
-        // Initialize parameters starting with "X"
-        else if (p.name.rfind("X", 0) == 0) {
+        } else if (p.name.rfind("X", 0) == 0) {
             for (int i = 0; i < p.tensor.data.size(); i++) {
                 p.tensor.data[i] = dist(gen);
             }
@@ -102,15 +98,12 @@ std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x)
     return parameters;
 }
 
-
 // Calculate derivatives using finite differences
 template<typename T>
 std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>& x0, T h) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t order = sequence.length();
-
     std::vector<Param<T>> derivatives;
-
     size_t xShape = cm.getXShape();
     size_t yShape = cm.getYShape();
 
@@ -131,7 +124,6 @@ std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>&
             for (size_t t = 0; t < k; ++t) shape.push_back(xShape);
 
             Param<T> pk(std::map<size_t, size_t>{}, shape, std::format("F_{}", k), ParamRole::Input);
-
             std::vector<size_t> idx(k, 0);
 
             auto compute_and_store = [&](const std::vector<size_t>& idx) {
@@ -179,53 +171,9 @@ std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>&
     return derivatives;
 }
 
-
-// Generate the complex nested AD types
-std::string generateNestedADType(std::string sequence) {
-    ConfigManager cm = ConfigManager::getInstance();
-    std::string V = std::to_string(cm.getTangentShape());
-    std::string U = std::to_string(cm.getAdjointShape());
-
-    std::string result = cm.getType();
-
-    for (int i = 0; i < sequence.length(); i++) {
-        if (sequence[i] == 't') {
-            result = std::format("T_t<{},{}>", result, V);
-        } else if (sequence[i] == 'a') {
-            result = std::format("A_t<{},{}>", result, U);
-        }
-    }
-
-    return result;
-}
-
-
-// Generate the x variable for complex nested AD types
-std::string generateXNestedADType(std::string sequence) {
-    std::string complexType = generateNestedADType(sequence);
-    return std::format("X_t<{}>", complexType);
-}
-
-
-// Generate the y variable for complex nested AD types
-std::string generateYNestedADType(std::string sequence) {
-        std::string complexType = generateNestedADType(sequence);
-    return std::format("Y_t<{}>", complexType);
-}
-
-
-// Nested AD types must have a .value() member
-template<typename T>
-concept isADNestedType = requires(T x) {
-    { x.value() };
-};
-
-
 // Seed the nested AD type
-// Note: the initial call in the driver is done with empty coords
 template<typename ADNested, typename T>
-void seedAD(ADNested& x, Param<T>& p, size_t curOrder, std::string& sequence, std::deque<size_t> coords) {
-    // Check if it ADNested is a valid AD nested type at compile time
+void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords) {
     if constexpr (!isADNestedType<ADNested>) {
         if (curOrder == 0) {
             x = p.tensor.data[p.tensor.getIndex(coords)];
@@ -234,19 +182,16 @@ void seedAD(ADNested& x, Param<T>& p, size_t curOrder, std::string& sequence, st
     }
 
     char curType = sequence[sequence.length() - curOrder];
-
     if (p.isActive(curOrder)) {
         size_t curShape = p.getShapeAt(curOrder);
-
         if (curType == 't') {
             for (size_t i = 0; i < curShape; i++) {
                 coords.push_back(i);
                 ADSeed(x.tangent(i), p, curOrder - 1, sequence, coords);
                 coords.pop_back();
             }
-
         } else if (curType == 'a') {
-            for (size_t i = 0; i < curShape; i++ ) {
+            for (size_t i = 0; i < curShape; i++) {
                 coords.push_front(i);
                 ADSeed(x.adjoint(i), p, curOrder - 1, sequence, coords);
                 coords.pop_back();
@@ -257,10 +202,9 @@ void seedAD(ADNested& x, Param<T>& p, size_t curOrder, std::string& sequence, st
     }
 }
 
-
+// Extract the nested AD type
 template<typename ADNested, typename T>
-void extractAD(ADNested& y, Param<T>& p, size_t curOrder, std::string& sequence, std::deque<size_t> coords) {
-    // Check if it ADNested is a valid AD nested type at compile time
+void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords) {
     if constexpr (!isADNestedType<ADNested>) {
         if (curOrder == 0) {
             p.tensor.data[p.tensor.getIndex(coords)] = y;
@@ -268,21 +212,17 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, std::string& sequence,
         }
     }
 
-
     char curType = sequence[sequence.length() - curOrder];
-
     if (p.isActive(curOrder)) {
         size_t curShape = p.getShapeAt(curOrder);
-
         if (curType == 't') {
             for (size_t i = 0; i < curShape; i++) {
                 coords.push_back(i);
                 ADSeed(y.tangent(i), p, curOrder - 1, sequence, coords);
                 coords.pop_back();
             }
-
         } else if (curType == 'a') {
-            for (size_t i = 0; i < curShape; i++ ) {
+            for (size_t i = 0; i < curShape; i++) {
                 coords.push_front(i);
                 ADSeed(y.adjoint(i), p, curOrder - 1, sequence, coords);
                 coords.pop_back();
@@ -293,14 +233,13 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, std::string& sequence,
     }
 }
 
-
 // Seeds all parameters for a specific order/layer
 template<typename ADNested, typename T>
-void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t curOrder, std::string& sequence) {
+void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
 
-    for (Param p : parameters) {
+    for (Param<T>& p : parameters) {
         if (p.highestOrder == curOrder && p.isActive(curOrder)) {
             for (size_t i = 0; i < xShape; i++) {
                 seedAD(x(i), p, curOrder, sequence, {i});
@@ -309,14 +248,13 @@ void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t curOr
     }
 }
 
-
 // Extracts all values for a specific order/layer
 template<typename ADNested, typename T>
-void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t curOrder, std::string& sequence) {
+void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t yShape = cm.getXShape();
 
-    for (Param p : parameters) {
+    for (Param<T>& p : parameters) {
         if (p.highestOrder == curOrder && p.isActive(curOrder)) {
             for (size_t j = 0; j < yShape; j++) {
                 extractAD(y(j), p, curOrder, sequence, {j});
@@ -325,15 +263,14 @@ void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t cu
     }
 }
 
-
+// Seed the primal value for the nested type
 template<typename ADNested, typename T>
-void seedPrimal(ADNested& x, std::vector<Param<T>> parameters) {
-    // TODO: add loop here
+void seedPrimal(ADNested& x, const std::vector<Param<T>>& parameters) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
 
     if constexpr (!isADNestedType<ADNested>) {
-        for (Param p : parameters) {
+        for (const Param<T>& p : parameters) {
             if (p.name.length() == 1 && p.name[0] == 'X') {
                 for (size_t i = 0; i < xShape; i++) {
                     x(i) = p.tensor.data[p.tensor.getIndex({i})];
@@ -345,14 +282,14 @@ void seedPrimal(ADNested& x, std::vector<Param<T>> parameters) {
     seedPrimal(x.value(), parameters);
 }
 
-
+// Extract the primal value for the nested type
 template<typename ADNested, typename T>
-void extractPrimal(ADNested& y, std::vector<Param<T>> parameters) {
+void extractPrimal(ADNested& y, const std::vector<Param<T>>& parameters) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t yShape = cm.getYShape();
 
     if constexpr (!isADNestedType<ADNested>) {
-        for (Param p : parameters) {
+        for (const Param<T>& p : parameters) {
             if (p.name.length() == 1 && p.name[0] == 'Y') {
                 for (size_t j = 0; j < yShape; j++) {
                     p.tensor.data[p.tensor.getIndex({j})] = y(j);
@@ -364,60 +301,7 @@ void extractPrimal(ADNested& y, std::vector<Param<T>> parameters) {
     extractPrimal(y.value(), parameters);
 }
 
-
-// Determine the current layer's AD type
-std::string getCurrentLayerADType(size_t curOrder, std::string sequence) {
-    // adjoint over tangent -> 'at' -> order of adjoint is 2 -> 'a' -> A_t<double, U>
-    // adjoint over tangent -> 'at' -> order of tangent is 1 -> 'at' -> T_t<A_t<double, U>, V>
-    std::string subsequence = sequence.substr(0, curOrder + 1);
-    return generateNestedADType(subsequence);
-}
-
-
-// Determine the function name of the current layer
-std::string getCurrentLayerFunctionName(size_t curOrder) {
-    ConfigManager cm = ConfigManager::getInstance();
-    if (curOrder == 0) return cm.getPrimalFunctionName();
-    
-    return std::format("AD_F_{}", curOrder);
-}
-
-
-// Generate the string required to register an input in an adjoint mode driver
-std::string generateRegisterInputString(size_t curOrder) {
-    ConfigManager cm = ConfigManager::getInstance();
-    size_t xShape = cm.getXShape();
-    std::string result = std::format("\tfor (size_t i = 0; i < {}; i++) {{\n", xShape);
-
-    std::string xVariable = "x[i]";
-    for (int i = 1; i < curOrder - 1; i++) {
-        xVariable += ".value()";
-    }
-
-    result += std::format("\t\t{}.register_input();\n", xVariable);
-    result += "\t}\n";
-    
-    return result;
-}
-
-
-// Generate the string required to reset all tapes in a (top level) adjoint mode driver
-std::string generateResetTapeString(std::string sequence) {
-    std::string result = "";
-    std::string curSubstring = "";
-
-    for (int i = 0; i < sequence.length(); i++) {
-        if (sequence[i] == 'a') {
-            curSubstring = sequence.substr(0, i + 1);
-            result += std::format("\t{}::tape::reset();\n", generateNestedADType(curSubstring));
-        }
-    }
-
-    return result;
-}
-
-
-// Finds a specific parameter by name from a list of parameters
+// Find a specific parameter by name from a list of parameters
 template <typename T>
 Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& parameters) {
     for (auto& p : parameters) {
@@ -425,7 +309,6 @@ Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& p
             return p;
         }
     }
-
     throw std::runtime_error(std::format("Parameter not found: {}", targetName));
 }
 
@@ -436,6 +319,7 @@ const Param<T>& findParamByName(const std::string& targetName, const std::deque<
             return p;
         }
     }
-
     throw std::runtime_error(std::format("Parameter not found: {}", targetName));
 }
+
+#endif

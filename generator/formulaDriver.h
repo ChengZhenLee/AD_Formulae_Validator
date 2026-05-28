@@ -38,4 +38,6 @@ void adjointMode(
     std::deque<Param<T>>& derivatives
 );
 
+#include "formulaDriver.hpp"
+
 #endif

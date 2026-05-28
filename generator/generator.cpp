@@ -241,3 +241,77 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
 
     return result;
 }
+
+
+// ----------------
+// Helper Functions
+// ----------------
+
+// Generate the complex nested AD types
+std::string generateNestedADType(std::string sequence) {
+    ConfigManager cm = ConfigManager::getInstance();
+    std::string V = std::to_string(cm.getTangentShape());
+    std::string U = std::to_string(cm.getAdjointShape());
+
+    std::string result = cm.getType();
+    for (int i = 0; i < sequence.length(); i++) {
+        if (sequence[i] == 't') {
+            result = std::format("T_t<{},{}>", result, V);
+        } else if (sequence[i] == 'a') {
+            result = std::format("A_t<{},{}>", result, U);
+        }
+    }
+    return result;
+}
+
+// Generate the x variable for complex nested AD types
+std::string generateXNestedADType(std::string sequence) {
+    std::string complexType = generateNestedADType(sequence);
+    return std::format("X_t<{}>", complexType);
+}
+
+// Generate the y variable for complex nested AD types
+std::string generateYNestedADType(std::string sequence) {
+    std::string complexType = generateNestedADType(sequence);
+    return std::format("Y_t<{}>", complexType);
+}
+
+// Determine the current layer's AD type
+std::string getCurrentLayerADType(size_t curOrder, std::string sequence) {
+    std::string subsequence = sequence.substr(0, curOrder + 1);
+    return generateNestedADType(subsequence);
+}
+
+// Determine the function name of the current layer
+std::string getCurrentLayerFunctionName(size_t curOrder) {
+    ConfigManager cm = ConfigManager::getInstance();
+    if (curOrder == 0) return cm.getPrimalFunctionName();
+    return std::format("AD_F_{}", curOrder);
+}
+
+// Generate the string required to register an input in an adjoint mode driver
+std::string generateRegisterInputString(size_t curOrder) {
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t xShape = cm.getXShape();
+    std::string result = "\tfor (size_t i = 0; i < " + std::to_string(xShape) + "; i++) {\n";
+    std::string xVariable = "x[i]";
+    for (int i = 1; i < curOrder - 1; i++) {
+        xVariable += ".value()";
+    }
+    result += std::format("\t\t{}.register_input();\n", xVariable);
+    result += "\t}\n";
+    return result;
+}
+
+// Generate the string required to reset all tapes in a (top level) adjoint mode driver
+std::string generateResetTapeString(std::string sequence) {
+    std::string result;
+    std::string curSubstring;
+    for (int i = 0; i < sequence.length(); i++) {
+        if (sequence[i] == 'a') {
+            curSubstring = sequence.substr(0, i + 1);
+            result += std::format("\t{}::tape::reset();\n", generateNestedADType(curSubstring));
+        }
+    }
+    return result;
+}
