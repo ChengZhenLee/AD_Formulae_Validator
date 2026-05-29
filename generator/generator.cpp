@@ -22,6 +22,10 @@ void generateADHeader(std::string filename) {
 
     // Include the required headers
     result += "#include \"structures.h\"\n";
+    result += "#include \"utils.h\"\n";
+    result += "#include \"user_function.h\"\n";
+    result += "#include \"readWrite.h\"\n";
+    result += "#include \"configManager.h\"\n";
     result += "\n";
 
     // Include the functions
@@ -55,17 +59,15 @@ void generateADDrivers(std::string filename) {
 
     // Write the includes
     outFile << "#include \"adDrivers.h\"\n";
-    outFile << "#include \"structures.h\"\n";
-    outFile << "#include \"user_function.h\"";
-    outFile << "#include \"readWrite.h\"\n";
     outFile << "\n\n";
 
-    for (int i = 0; i < order; i++) {
-        if (sequence[i] == 't') {
-            outFile << generateTangent(i + 1, sequence, XADNested, YADNested); 
+    for (int i = 1; i <= order; i++) {
+        char mode = sequence[i - 1];
+        if (mode == 't') {
+            outFile << generateTangent(order - i + 1, sequence, XADNested, YADNested); 
         }
-        else if (sequence[i] == 'a') {
-            outFile << generateAdjoint(i + 1, sequence, XADNested, YADNested);
+        else if (mode == 'a') {
+            outFile << generateAdjoint(order - i + 1, sequence, XADNested, YADNested);
         }
         outFile << "\n";
     }
@@ -278,7 +280,7 @@ std::string generateYNestedADType(std::string sequence) {
 
 // Determine the current layer's AD type
 std::string getCurrentLayerADType(size_t curOrder, std::string sequence) {
-    std::string subsequence = sequence.substr(0, curOrder + 1);
+    std::string subsequence = sequence.substr(0, curOrder - 1);
     return generateNestedADType(subsequence);
 }
 
@@ -295,7 +297,7 @@ std::string generateRegisterInputString(size_t curOrder) {
     size_t xShape = cm.getXShape();
     std::string result = "\tfor (size_t i = 0; i < " + std::to_string(xShape) + "; i++) {\n";
     std::string xVariable = "x[i]";
-    for (int i = 1; i < curOrder - 1; i++) {
+    for (int i = 0; i < curOrder - 1; i++) {
         xVariable += ".value()";
     }
     result += std::format("\t\t{}.register_input();\n", xVariable);

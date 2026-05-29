@@ -1,12 +1,6 @@
 [
 {
   "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
-  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include/ad\" -g -std=gnu++20 -o CMakeFiles\\generator_lib.dir\\generator\\configManager.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\generator\\configManager.cpp\"",
-  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator/configManager.cpp",
-  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/CMakeFiles/generator_lib.dir/generator/configManager.cpp.obj"
-},
-{
-  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
   "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include/ad\" -g -std=gnu++20 -o CMakeFiles\\generator_lib.dir\\generator\\generator.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\generator\\generator.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator/generator.cpp",
   "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/CMakeFiles/generator_lib.dir/generator/generator.cpp.obj"

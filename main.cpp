@@ -143,9 +143,9 @@ int main(int argc, char** argv) {
     // Compile only the freshly generated AD source file
     std::string compileCmd = "g++ -std=c++20 "
                          "generator/adDrivers.cpp "
-                         "-I generator "
+                         "-I ../generator "
                          "-I ../include/ad "      // To find ad.h
-                         "-I ../include "          // To find Eigen
+                         "-I ../include "          // To find Eigen and nlohmann
                          "-o generator/adDrivers.exe";
 
     int compileStatus = std::system(compileCmd.c_str());

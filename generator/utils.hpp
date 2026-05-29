@@ -174,8 +174,8 @@ std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>&
 // Seed the nested AD type
 template<typename ADNested, typename T>
 void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords) {
-    if constexpr (!isADNestedType<ADNested>) {
-        if (curOrder == 0) {
+    if constexpr(!isADNestedType<ADNested>) {
+        if (curOrder > sequence.length()) {
             x = p.tensor.data[p.tensor.getIndex(coords)];
             return;
         }
@@ -185,28 +185,35 @@ void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& 
     if (p.isActive(curOrder)) {
         size_t curShape = p.getShapeAt(curOrder);
         if (curType == 't') {
-            for (size_t i = 0; i < curShape; i++) {
-                coords.push_back(i);
-                ADSeed(x.tangent(i), p, curOrder - 1, sequence, coords);
-                coords.pop_back();
+            // COMPILER GUARD: Only compile this loop if x actually has a .tangent() method
+            if constexpr (requires { x.tangent(0); }) {
+                for (size_t i = 0; i < curShape; i++) {
+                    std::deque<size_t> nextCoords = coords;
+                    nextCoords.push_back(i);
+                    seedAD(x.tangent(i), p, curOrder + 1, sequence, nextCoords);
+                }
             }
         } else if (curType == 'a') {
-            for (size_t i = 0; i < curShape; i++) {
-                coords.push_front(i);
-                ADSeed(x.adjoint(i), p, curOrder - 1, sequence, coords);
-                coords.pop_back();
+            // COMPILER GUARD: Only compile this loop if x actually has an .adjoint() method
+            if constexpr (requires { x.adjoint(0); }) {
+                for (size_t i = 0; i < curShape; i++) {
+                    std::deque<size_t> nextCoords = coords;
+                    nextCoords.push_front(i);
+                    seedAD(x.adjoint(i), p, curOrder + 1, sequence, nextCoords);
+                }
             }
         }
     } else {
-        ADSeed(x.value(), p, curOrder - 1, sequence, coords);
+        if constexpr(requires { x.value(); })
+        seedAD(x.value(), p, curOrder + 1, sequence, coords);
     }
 }
 
 // Extract the nested AD type
 template<typename ADNested, typename T>
 void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords) {
-    if constexpr (!isADNestedType<ADNested>) {
-        if (curOrder == 0) {
+    if constexpr(!isADNestedType<ADNested>) {
+        if (curOrder > sequence.length()) {
             p.tensor.data[p.tensor.getIndex(coords)] = y;
             return;
         }
@@ -215,34 +222,41 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
     char curType = sequence[sequence.length() - curOrder];
     if (p.isActive(curOrder)) {
         size_t curShape = p.getShapeAt(curOrder);
+        
         if (curType == 't') {
-            for (size_t i = 0; i < curShape; i++) {
-                coords.push_back(i);
-                ADSeed(y.tangent(i), p, curOrder - 1, sequence, coords);
-                coords.pop_back();
+            // COMPILER GUARD: Only compile this loop if y actually has a .tangent() method
+            if constexpr(requires { y.tangent(0); }) {
+                for (size_t i = 0; i < curShape; i++) {
+                    coords.push_back(i);
+                    extractAD(y.tangent(i), p, curOrder + 1, sequence, coords);
+                }
             }
+            
         } else if (curType == 'a') {
-            for (size_t i = 0; i < curShape; i++) {
-                coords.push_front(i);
-                ADSeed(y.adjoint(i), p, curOrder - 1, sequence, coords);
-                coords.pop_back();
+            // COMPILER GUARD: Only compile this loop if y actually has a .adjoint() method
+            if constexpr(requires { y.adjoint(0); }) {
+                for (size_t i = 0; i < curShape; i++) {
+                    coords.push_front(i);
+                    extractAD(y.adjoint(i), p, curOrder + 1, sequence, coords);
+                }
             }
         }
     } else {
-        ADSeed(y.value(), p, curOrder - 1, sequence, coords);
+        if constexpr(requires { y.value(); })
+            extractAD(y.value(), p, curOrder + 1, sequence, coords);
     }
 }
 
 // Seeds all parameters for a specific order/layer
 template<typename ADNested, typename T>
-void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence) {
+void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
 
     for (Param<T>& p : parameters) {
-        if (p.highestOrder == curOrder && p.isActive(curOrder)) {
+        if (p.highestOrder == targetOrder && p.isActive(targetOrder)) {
             for (size_t i = 0; i < xShape; i++) {
-                seedAD(x(i), p, curOrder, sequence, {i});
+                seedAD(x[i], p, 1, sequence, {i});
             }
         }
     }
@@ -250,14 +264,14 @@ void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t curOr
 
 // Extracts all values for a specific order/layer
 template<typename ADNested, typename T>
-void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence) {
+void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t yShape = cm.getXShape();
 
     for (Param<T>& p : parameters) {
-        if (p.highestOrder == curOrder && p.isActive(curOrder)) {
+        if (p.highestOrder == targetOrder && p.isActive(targetOrder)) {
             for (size_t j = 0; j < yShape; j++) {
-                extractAD(y(j), p, curOrder, sequence, {j});
+                extractAD(y[j], p, 1, sequence, {j});
             }
         }
     }
@@ -269,37 +283,50 @@ void seedPrimal(ADNested& x, const std::vector<Param<T>>& parameters) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
 
-    if constexpr (!isADNestedType<ADNested>) {
-        for (const Param<T>& p : parameters) {
-            if (p.name.length() == 1 && p.name[0] == 'X') {
-                for (size_t i = 0; i < xShape; i++) {
-                    x(i) = p.tensor.data[p.tensor.getIndex({i})];
-                }
+    for (const Param<T>& p : parameters) {
+        if (p.name.length() == 1 && p.name[0] == 'Y') {
+            for (size_t i = 0; i < xShape; i++) {
+                seedElement(x[i], p, i);
             }
         }
     }
-
-    seedPrimal(x.value(), parameters);
 }
 
 // Extract the primal value for the nested type
 template<typename ADNested, typename T>
-void extractPrimal(ADNested& y, const std::vector<Param<T>>& parameters) {
+void extractPrimal(ADNested& y, std::vector<Param<T>>& parameters) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t yShape = cm.getYShape();
 
-    if constexpr (!isADNestedType<ADNested>) {
-        for (const Param<T>& p : parameters) {
-            if (p.name.length() == 1 && p.name[0] == 'Y') {
-                for (size_t j = 0; j < yShape; j++) {
-                    p.tensor.data[p.tensor.getIndex({j})] = y(j);
-                }
+    for (Param<T>& p : parameters) {
+        if (p.name.length() == 1 && p.name[0] == 'Y') {
+            for (size_t j = 0; j < yShape; j++) {
+                extractElement(y[j], p, j);
             }
         }
     }
-
-    extractPrimal(y.value(), parameters);
 }
+
+// Helper functions for seeding and extracting
+template<typename ADNested, typename T>
+void seedElement(ADNested& element, const Param<T> &p, size_t index) {
+    if constexpr(isADNestedType<ADNested>) {
+        seedElement(element.value(), p, index);
+    } else {
+        element = p.tensor.data[p.tensor.getIndex({index})];
+    }
+}
+
+
+template<typename ADNested, typename T>
+void extractElement(ADNested& element, Param<T> &p, size_t index) {
+    if constexpr(isADNestedType<ADNested>) {
+        extractElement(element.value(), p, index);
+    } else {
+        p.tensor.data[p.tensor.getIndex({index})] = element;
+    }
+}
+
 
 // Find a specific parameter by name from a list of parameters
 template <typename T>

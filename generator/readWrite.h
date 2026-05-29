@@ -43,5 +43,30 @@ std::vector<Param<T>> readParameters(const std::string &filename) {
 
     inFile.close();
 
-    return j.get<std::vector<Param<T>>>();
+    std::vector<Param<T>> result;
+    if (!j.is_array()) return result;
+
+    for (const auto &elem : j) {
+        // Extract fields
+        std::map<size_t, size_t> orderedShape = elem.at("orderedShape").get<std::map<size_t, size_t>>();
+        std::deque<size_t> shape = elem.at("tensor").at("shape").get<std::deque<size_t>>();
+        std::string name = elem.at("name").get<std::string>();
+        ParamRole role = elem.at("role").get<ParamRole>();
+
+        // Construct Param using available constructor
+        Param<T> p(orderedShape, shape, name, role);
+
+        // Fill tensor data
+        if (elem.at("tensor").contains("data")) {
+            p.tensor.data = elem.at("tensor").at("data").get<std::vector<T>>();
+        }
+
+        // Overwrite activeOrders and highestOrder if present
+        if (elem.contains("activeOrders")) p.activeOrders = elem.at("activeOrders").get<std::vector<int>>();
+        if (elem.contains("highestOrder")) p.highestOrder = elem.at("highestOrder").get<int>();
+
+        result.push_back(std::move(p));
+    }
+
+    return result;
 }

@@ -307,12 +307,12 @@ struct Param {
         return role == ParamRole::Input; 
     }
 
-    bool isActive(int order) {
+    bool isActive(int order) const {
         return std::find(activeOrders.begin(), activeOrders.end(), order) != activeOrders.end();
     }
 
-    size_t getShapeAt(int order) {
-        return orderedShape[order] ? orderedShape[order] : 0;
+    size_t getShapeAt(int order) const {
+        return orderedShape.at(order) ? orderedShape.at(order) : 0;
     }
 };
 
