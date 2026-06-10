@@ -1,6 +1,8 @@
-#include "formulaDriver.h"
+#include <cstddef>
+#include <deque>
 #include <unordered_set>
-
+#include "structures.h"
+#include "configManager.h"
 
 template<typename T>
 void runFormulaDriver(std::deque<Param<T>> parameters) {
@@ -39,8 +41,8 @@ template<typename T>
 void formulaDriver(
     std::string sequence, 
     std::deque<Equation<T>>& equations, 
-    const std::deque<Param<T>>& derivatives, 
-    const std::deque<Param<T>>& inputs, 
+    std::deque<Param<T>>& derivatives, 
+    std::deque<Param<T>>& inputs, 
     std::deque<Param<T>>& outputs) 
 {
     if (sequence.length() == 0) {
@@ -50,7 +52,7 @@ void formulaDriver(
         Param<T> F = Param<T>({}, {}, "F", ParamRole::Input); 
 
         // Calculate primal Y via the primal function
-        f(X.data, Y.data);
+        f(X.tensor.data, Y.tensor.data);
 
         // Initialize equations with Y = F * X (using a dummy F value)
         Equation<T> newEquation = Equation<T>(Y);
@@ -77,7 +79,7 @@ template<typename T>
 void tangentMode(
     size_t order, 
     std::deque<Equation<T>>& equations, 
-    const std::deque<Param<T>>& inputs, 
+    std::deque<Param<T>>& inputs, 
     std::deque<Param<T>>& outputs,
     std::deque<Param<T>>& derivatives)
 {
@@ -99,7 +101,7 @@ void tangentMode(
                 std::deque<Param<T>> paramChain = {};
 
                 // Handle the derivative of the i-th parameter
-                // The derivatives (F_k) are provided in the 'derivatives' list
+                // The derivatives (F_1_2_..._k) are provided in the 'derivatives' list
                 std::string derivedName = std::format("{}_{}", m.parameters[i].name, order);
                 Param<T> derivedParam = findParamByName(derivedName, derivatives);
 
@@ -141,7 +143,7 @@ void tangentMode(
                 if (resultShape != derivedParam.tensor.shape) {
                     throw std::runtime_error("Tensor chain result shape does not match derivedParam shape for tangentMode");
                 }
-                equationSum += Tensor<T>::product(productChain);
+                equationSum = equationSum + Tensor<T>::product(productChain);
                 newEquation.rightSide.push_back(Monomial<T>(paramChain));
             }
         }
@@ -162,7 +164,7 @@ template<typename T>
 void adjointMode(
     size_t order, 
     std::deque<Equation<T>>& equations, 
-    const std::deque<Param<T>>& inputs,
+    std::deque<Param<T>>& inputs,
     std::deque<Param<T>>& outputs,
     std::deque<Param<T>>& derivatives
 ) 
@@ -232,7 +234,7 @@ void adjointMode(
                     if (resultShape != targetParam.tensor.shape) {
                         throw std::runtime_error(std::format("Tensor chain result shape does not match targetParam shape for X_{}", order));
                     }
-                    equationSum += Tensor<T>::product(productChain);
+                    equationSum = equationSum + Tensor<T>::product(productChain);
                     newEquation.rightSide.push_back(Monomial<T>(paramChain));
                 }
 
@@ -287,7 +289,7 @@ void adjointMode(
                     if (resultShape != targetParam.tensor.shape) {
                         throw std::runtime_error(std::format("Tensor chain result shape does not match targetParam shape for {}", targetName));
                     }
-                    equationSum += Tensor<T>::product(productChain);
+                    equationSum = equationSum + Tensor<T>::product(productChain);
                     newEquation.rightSide.push_back(Monomial<T>(paramChain));
                 }
             }

@@ -1,53 +1,49 @@
 # AD Formulae Validator
 
-A small C++ project that builds an `ADValidator` executable using CMake and runs automatic validation of adjoint/tangent operations.
+This README describes the runtime flow that is driven by `main.cpp` and the `generator/` folder.
 
-## Prerequisites
+## What this project does
 
-- `cmake` version 3.10 or newer
-- A C++20-compatible compiler (e.g. `g++`, `clang++`)
-- `make` or another CMake generator
-- Standard build tools (`build-essential` on Debian/Ubuntu)
+`main.cpp` controls an automatic code-generation pipeline:
 
-## Build Instructions
+- loads generator settings from `generator/configs.txt`
+- uses `generator/generator.cpp` to create `generator/adDrivers.h` and `generator/adDrivers.cpp`
+- writes `generator/parameters.txt` from manual or random input
+- compiles the generated AD driver as `generator/adDrivers.exe`
+- runs the compiled AD driver and the formula validation driver
 
-1. Open a terminal and go to the project root:
+## Key files in `generator/`
 
-```bash
-cd "AD_Formulae_Validator"
-```
+- `generator/generator.cpp` / `generator/generator.h`
+  - generate AD driver source code and header declarations
+  - build the generated `main()` that reads parameters and invokes AD drivers
+- `generator/configManager.h` / `generator/configManager.cpp`
+  - load runtime settings such as data type, input shape, and AD sequence
+- `generator/readWrite.h`
+  - read/write parameter vectors to `generator/parameters.txt`
+- `generator/formulaDriver.hpp` / `generator/formulaDriver.h`
+  - run the formula driver for validation using the same parameters
+- `generator/structures.h`, `generator/utils.h`, `generator/user_function.h`
+  - shared support code for AD type creation, seeding, and extraction
 
-2. Create a build directory and enter it:
+## Runtime behavior
 
-```bash
-mkdir -p build
-cd build
-```
+When `ADValidator` runs, `main.cpp` performs these phases:
 
-3. Generate the build files with CMake:
+1. Load configuration from `generator/configs.txt`
+2. Generate the AD driver header and implementation files
+3. Populate input parameters (manual or random) and save them to `generator/parameters.txt`
+4. Compile the generated driver source into `generator/adDrivers.exe`
+5. Execute the generated AD driver and validate results with `runFormulaDriver`
 
-```bash
-cmake ..
-```
+## Input and output files
 
-4. Build the executable:
-
-```bash
-make
-```
-
-## Run the Validator
-
-From the `build` directory:
-
-```bash
-./ADValidator
-```
-
-The program prints a summary to the terminal and writes detailed validation output to `validation_results.txt` in the current directory.
+- `generator/configs.txt` — configuration for type, input size, and AD sequence
+- `generator/parameters.txt` — generated seed/input values used by the AD driver
+- `generator/adDrivers.h` / `generator/adDrivers.cpp` — generated AD driver code
+- `generator/results.txt` — output produced by the generated AD driver
 
 ## Notes
 
-- The project uses C++20.
-- If you prefer a different generator, replace `make` with `cmake --build .`.
-- The generated executable is named `ADValidator`.
+- This workflow is centered on the generator code and the runtime orchestration in `main.cpp`.
+- The AD driver is emitted dynamically at runtime, compiled, and executed as part of the validator pipeline.

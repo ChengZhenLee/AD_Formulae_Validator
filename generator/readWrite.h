@@ -1,3 +1,7 @@
+#ifndef READWRITE_H
+#define READWRITE_H
+
+
 #include <fstream>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -58,7 +62,7 @@ std::vector<Param<T>> readParameters(const std::string &filename) {
 
         // Fill tensor data
         if (elem.at("tensor").contains("data")) {
-            p.tensor.data = elem.at("tensor").at("data").get<std::vector<T>>();
+            p.tensor.data = elem.at("tensor").at("data").get<std::deque<T>>();
         }
 
         // Overwrite activeOrders and highestOrder if present
@@ -70,3 +74,6 @@ std::vector<Param<T>> readParameters(const std::string &filename) {
 
     return result;
 }
+
+
+#endif

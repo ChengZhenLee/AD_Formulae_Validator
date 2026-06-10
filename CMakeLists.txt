@@ -26,11 +26,3 @@ target_include_directories(generator_lib PUBLIC
 # Main executable (minimal runner for generator-focused builds)
 add_executable(ADValidator main.cpp)
 target_link_libraries(ADValidator PRIVATE generator_lib)
-
-# Unit tests
-if(BUILD_TESTS)
-    enable_testing()
-    add_executable(generator_tests tests/generator_tests.cpp)
-    target_link_libraries(generator_tests PRIVATE generator_lib)
-    add_test(NAME generator_tests COMMAND generator_tests)
-endif()

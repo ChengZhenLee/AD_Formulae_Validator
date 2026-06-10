@@ -30,7 +30,7 @@ void generateADHeader(std::string filename) {
 
     // Include the functions
     result += "template <typename T>\n";
-    result += "std::vector<Param<T>> runADDrivers(std::string mode, X_t<T>& x); \n\n";
+    result += "std::vector<Param<T>> runADDrivers(X_t<T>& x); \n\n";
     for (size_t i = 0; i < order; i++) {
             result += "template <typename T>\n";
             result += std::format(
@@ -80,7 +80,7 @@ void generateADDrivers(std::string filename) {
 }
 
 
-// TODO: Generate main function that:
+// Generate main function that:
 // 1. reads a file of parameters 
 // 2. calls the AD functions
 // 3. writes the parameters to the output file
@@ -92,16 +92,19 @@ std::string generateMain(std::string sequence) {
 
     result += "int main(int argc, char** argv) {\n";
 
+    // Load the configs
+    result += "\tConfigManager::getInstance().load(\"generator/configs.txt\");\n\n";
+
     // Read the parameters
     result += std::format(
-        "\tstd::vector<Param<{}>> parameters = readParameters<{}>(\"generator/parameters.txt\");\n\n",
+        "\tstd::vector<Param<{}>> parameters = readParameters<{}>(\"generator/parameters.bin\");\n\n",
         type, type
     );
 
     // Run and write the results
     result += std::format(
         "\tauto results = runADDrivers<{}>(parameters);\n"
-        "\twriteParameters<{}>(results, \"generator/results.txt\");\n\n", 
+        "\twriteParameters<{}>(results, \"generator/results.bin\");\n\n", 
         type, type
     );
 
@@ -125,9 +128,16 @@ std::string generateInterface(std::string sequence, std::string XADNested, std::
     result += "template<typename T> \n";
     result += "std::vector<Param<T>> runADDrivers(std::vector<Param<T>> &parameters) {\n";
 
+    // Get the config manager
+    result += "\tConfigManager& cm = ConfigManager::getInstance();\n";
+
     // Initialize the AD types 
     result += std::format("\t{} x;\n", XADNested);
-    result += format("\t{} y;\n", YADNested);
+    result += std::format("\t{} y;\n", YADNested);
+
+    // Resize x and y deques
+    result += "\tx.resize(cm.getXShape());\n";
+    result += "\ty.resize(cm.getYShape());\n";
 
     // Run the drivers
     result += std::format("\t{}<{}>(x, y, parameters);\n", functionName, type);
@@ -245,6 +255,148 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
 }
 
 
+// Generate helper drivers to calculate the derivatives
+void generateHelperHeader(std::string filename) {
+    std::ofstream outFile(filename);
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t order = cm.getSequence().length();
+    std::string sequence = "";
+    for (size_t i = 0; i < order; i++) {
+        sequence += 't';
+    }
+    std::string XADNested = generateXNestedADType(sequence);
+    std::string YADNested = generateYNestedADType(sequence);
+    std::string result = "";
+
+    // Include the defines
+    result += "#ifndef ADHELPER_H\n";
+    result += "#define ADHELPER_H\n";
+    result += "\n";
+
+    // Include the required headers
+    result += "#include \"structures.h\"\n";
+    result += "#include \"utils.h\"\n";
+    result += "#include \"user_function.h\"\n";
+    result += "#include \"readWrite.h\"\n";
+    result += "#include \"configManager.h\"\n";
+    result += "\n";
+
+    // Include the functions
+    result += "template <typename T>\n";
+    result += "std::vector<Param<T>> runADHelper(X_t<T>& x); \n\n";
+    for (size_t i = 0; i < order; i++) {
+            result += "template <typename T>\n";
+            result += std::format(
+                "void {0}({1}& x, {2}& y, std::vector<Param<T>> parameters); \n\n", 
+                getCurrentLayerFunctionName(i + 1), XADNested, YADNested);
+    }
+
+    result += "\n#endif\n";
+
+    outFile << result;
+
+    outFile.close();
+}
+
+
+// Generate the Helper drivers
+void generateHelperDrivers(std::string filename) {
+    std::ofstream outFile(filename);
+
+    ConfigManager cm = ConfigManager::getInstance();
+    size_t order = cm.getSequence().length();
+    std::string sequence = "";
+    for (size_t i = 0; i < order; i++) {
+        sequence += 't';
+    }
+    std::string XADNested = generateXNestedADType(sequence);
+    std::string YADNested = generateYNestedADType(sequence);
+
+    // Write the includes
+    outFile << "#include \"adHelper.h\"\n";
+    outFile << "\n\n";
+
+    // The helpers only use tangent mode
+    for (int i = 1; i <= order; i++) {
+        outFile << generateTangent(order - i + 1, sequence, XADNested, YADNested); 
+        outFile << "\n";
+    }
+
+    outFile << generateHelperInterface(sequence, XADNested, YADNested);
+    outFile << "\n";
+
+    outFile << generateHelperMain(sequence);
+    outFile.close();
+}
+
+
+// Generates the helper function's interface
+std::string generateHelperInterface(std::string sequence, std::string XADNested, std::string YADNested) {
+    ConfigManager cm = ConfigManager::getInstance();
+    std::string type = cm.getType();
+
+    size_t order = sequence.length();
+    std::string functionName = getCurrentLayerFunctionName(order);
+    std::string result = "";
+
+    // Code to seed the parameters
+    result += "template<typename T> \n";
+    result += "std::vector<Param<T>> runHelperDrivers(std::vector<Param<T>> &parameters) {\n";
+
+    // Get the config manager
+    result += "\tConfigManager& cm = ConfigManager::getInstance();\n";
+
+    // Initialize the AD types 
+    result += std::format("\t{} x;\n", XADNested);
+    result += format("\t{} y;\n", YADNested);
+
+    // Resize x and y deques
+    result += std::format("\tx.resize(cm.getXShape());\n");
+    result += std::format("\ty.resize(cm.getYShape());\n");
+
+    // Run the drivers
+    result += std::format("\t{}<{}>(x, y, parameters);\n", functionName, type);
+
+    // Return the parameters
+    result += "\treturn parameters;\n";
+    result += "}\n";
+
+    return result;
+}
+
+
+// Generate helper's main function
+std::string generateHelperMain(std::string sequence) {
+    ConfigManager cm = ConfigManager::getInstance();
+    std::string type = cm.getType();
+
+    std::string result = "";
+
+    result += "int main(int argc, char** argv) {\n";
+
+    // Load the configs
+    result += "\tConfigManager::getInstance().load(\"generator/configs.txt\");\n\n";
+
+    // Read the parameters
+    result += std::format(
+        "\tstd::vector<Param<{}>> parameters = readParameters<{}>(\"generator/derivatives_seeds.bin\");\n\n",
+        type, type
+    );
+
+    // Run and write the results
+    result += std::format(
+        "\tauto results = runHelperDrivers<{}>(parameters);\n"
+        "\twriteParameters<{}>(results, \"generator/derivatives.bin\");\n\n", 
+        type, type
+    );
+
+    result += "\treturn 0;\n";
+    result += "}\n";
+
+    return result;
+}
+
+
 // ----------------
 // Helper Functions
 // ----------------
@@ -280,7 +432,7 @@ std::string generateYNestedADType(std::string sequence) {
 
 // Determine the current layer's AD type
 std::string getCurrentLayerADType(size_t curOrder, std::string sequence) {
-    std::string subsequence = sequence.substr(0, curOrder - 1);
+    std::string subsequence = sequence.substr(0, sequence.length() - curOrder + 1);
     return generateNestedADType(subsequence);
 }
 

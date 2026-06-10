@@ -1,9 +1,9 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
+#include <algorithm>
 #include <string>
 #include <map>
-#include <vector>
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -13,6 +13,22 @@ class ConfigManager {
     private:
         std::map<std::string, std::string> config;
         ConfigManager() {}
+
+        std::string trim(const std::string& str) {
+            if (str.empty()) return "";
+            
+            // Find first non-whitespace, non-control character
+            auto start = std::find_if(str.begin(), str.end(), [](unsigned char ch) {
+                return !std::isspace(ch) && !std::iscntrl(ch);
+            });
+            
+            // Find last non-whitespace, non-control character
+            auto end = std::find_if(str.rbegin(), str.rend(), [](unsigned char ch) {
+                return !std::isspace(ch) && !std::iscntrl(ch);
+            }).base();
+            
+            return (start < end) ? std::string(start, end) : "";
+        }
 
     public:
         static ConfigManager& getInstance() {
@@ -31,26 +47,24 @@ class ConfigManager {
             }
 
             while (std::getline(file, line)) {
-                // Remove Windows carriage return '\r' if present
-                if (!line.empty() && line.back() == '\r') {
-                    line.pop_back();
-                }
-
-                // Skip comments and empty lines
+                // Skip comments and empty lines early
                 if (line.empty() || line[0] == '#') continue;
 
                 std::istringstream is_line(line);
                 std::string key, value;
-                if (std::getline(is_line, key, '=') && std::getline(is_line, value)) {
-                    // Trim leading/trailing whitespace from key
-                    key.erase(0, key.find_first_not_of(" \t"));
-                    key.erase(key.find_last_not_of(" \t") + 1);
+                
+                if (std::getline(is_line, key, '=')) {
+                    // Check if there's actually a value after the '='
+                    if (std::getline(is_line, value)) {
+                        
+                        // Use the ultra-safe trimmer to strip spaces, \r, \n, and tabs
+                        key = trim(key);
+                        value = trim(value);
 
-                    // Trim leading/trailing whitespace from value
-                    value.erase(0, value.find_first_not_of(" \t"));
-                    value.erase(value.find_last_not_of(" \t") + 1);
-
-                    config[key] = value;
+                        if (!key.empty()) {
+                            config[key] = value;
+                        }
+                    }
                 }
             }
         }

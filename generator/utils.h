@@ -11,6 +11,9 @@ std::vector<Param<T>> generateParameters(std::string sequence);
 template<typename T>
 std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x);
 
+template<typename T>
+std::vector<Param<T>> generateDerivativeSeeds(std::string sequence, const X_t<T>& x);
+
 template<typename ADNested, typename T>
 void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords);
 

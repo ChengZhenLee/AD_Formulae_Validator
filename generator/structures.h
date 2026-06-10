@@ -30,13 +30,15 @@ using Y_t=std::deque<T>;
 // Vectorized Tensor
 template<typename T>
 struct Tensor {
-    std::vector<T> data;
+    std::deque<T> data;
     std::deque<size_t> shape;
     std::vector<size_t> strides;
 
     // Macro to define to_json() and from_json()
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(Tensor, data, shape, strides)
 
+    Tensor() = default;
+    
     // Initializer
     Tensor(std::deque<size_t> dims) : 
         shape(dims), strides(dims.size()) {
@@ -282,6 +284,8 @@ struct Param {
     // Macro automatically generates to_json() and from_json()
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(Param, tensor, name, role, activeOrders, orderedShape, highestOrder)
 
+    Param() = default;
+    
     Param(std::map<size_t, size_t> oShape, std::deque<size_t> shape, std::string inputName, ParamRole inputRole) 
         : orderedShape(oShape), tensor(shape), name(inputName), role(inputRole) {
         
