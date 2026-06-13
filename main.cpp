@@ -51,7 +51,7 @@ void fillWithRandomValues(X_t<T>& x_input) {
     for (auto& element : x_input) {
         element = dist(gen);
     }
-} 
+}
 
 
 int main(int argc, char** argv) {
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     // ----------------------------------------------------
     // PHASE 1: LOAD CONFIG & GENERATE CODE
     // ----------------------------------------------------
-    std::cout << "\n[1/5] Generating AD drivers...\n";
+    std::cout << "\n[1/6] Generating AD drivers...\n";
     ConfigManager::getInstance().load("generator/configs.txt");
     ConfigManager cm = ConfigManager::getInstance();
 
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     }
     std::cout << "Succesfully generated AD drivers\n";
 
-    std::cout << "\n[1.5/5] Generating and compiling helper drivers for derivatives...\n";
+    std::cout << "\n[1.5/6] Generating and compiling helper drivers for derivatives...\n";
     try {
         generateHelperHeader("generator/adHelper.h");
         generateHelperDrivers("generator/adHelper.cpp");
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     // ----------------------------------------------------
     // PHASE 2: GENERATE AND WRITE PARAMETERS INTO A FILE
     // ----------------------------------------------------
-    std::cout << "\n[2/5] Generating Input Seeds...\n";
+    std::cout << "\n[2/6] Generating Input Seeds...\n";
 
     // 1. Determine how x_input is populated (Manual vs. Random)
     using ParameterContainer = std::variant<
@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
 
 
     // Generate derivative seeds: create parameters with X and X_k (with identity seeding)
-    std::cout << "\n[2.5/5] Generating derivative seeds...\n";
+    std::cout << "\n[2.5/6] Generating derivative seeds...\n";
     
     if (target_type == "double") {
         auto derivSeeds = generateDerivativeSeeds<double>(cm.getSequence(), x_input);
@@ -150,60 +150,57 @@ int main(int argc, char** argv) {
     // ----------------------------------------------------
     // PHASE 3: COMPILE AD DRIVER ONLY
     // ----------------------------------------------------
-    std::cout << "\n[3/5] Compiling dynamic AD driver...\n";
+    // std::cout << "\n[3/6] Compiling dynamic AD driver...\n";
     
-    // Compile only the freshly generated AD source file
-    std::string compileCmd = "g++ -std=c++20 -g -O0 "
-                         "generator/adDrivers.cpp "
-                         "-I ../generator "
-                         "-I ../include/ad "      // To find ad.h
-                         "-I ../include "          // To find Eigen and nlohmann
-                         "-o generator/adDrivers.exe";
+    // // Compile only the freshly generated AD source file
+    // std::string compileCmd = "g++ -std=c++20 -g -O0 "
+    //                      "generator/adDrivers.cpp "
+    //                      "-I ../generator "
+    //                      "-I ../include/ad "      // To find ad.h
+    //                      "-I ../include "          // To find Eigen and nlohmann
+    //                      "-o generator/adDrivers.exe";
 
-    int compileStatus = std::system(compileCmd.c_str());
+    // int compileStatus = std::system(compileCmd.c_str());
 
-    if (compileStatus != 0) {
-        std::cerr << "Compilation of generated AD driver failed with return code: " << compileStatus << "\n";
-        return 2;
-    }
-    std::cout << "      AD drivers compilation successful.\n";
+    // if (compileStatus != 0) {
+    //     std::cerr << "Compilation of generated AD driver failed with return code: " << compileStatus << "\n";
+    //     return 2;
+    // }
+    // std::cout << "      AD drivers compilation successful.\n";
 
-    // Compile the helper driver
-    std::cout << "\n[3.5/5] Compiling helper driver...\n";
-    std::string helperCompileCmd = "g++ -std=c++20 -g -O0 "
-                                   "generator/adHelper.cpp "
-                                   "-I ../generator "
-                                   "-I ../include/ad "
-                                   "-I ../include "
-                                   "-o generator/adHelper.exe";
+    // // Compile the helper driver
+    // std::cout << "\n[3.5/6] Compiling helper driver...\n";
+    // std::string helperCompileCmd = "g++ -std=c++20 -g -O0 "
+    //                                "generator/adHelper.cpp "
+    //                                "-I ../generator "
+    //                                "-I ../include/ad "
+    //                                "-I ../include "
+    //                                "-o generator/adHelper.exe";
 
-    int helperCompileStatus = std::system(helperCompileCmd.c_str());
-    if (helperCompileStatus != 0) {
-        std::cerr << "Compilation of helper driver failed with return code: " << helperCompileStatus << "\n";
-        return 2;
-    }
-    std::cout << "      Helper driver compilation successful.\n";
-
-
-    // ----------------------------------------------------
-    // PHASE 4: RUN THE DRIVERS
-    // ----------------------------------------------------
-
-    // Run the helper driver to compute derivatives
-    std::cout << "\n[4/5] Running helper driver to compute derivatives...\n";
-    int helperRunStatus = std::system(".\\generator\\adHelper.exe");
-    if (helperRunStatus != 0) {
-        std::cerr << "Execution of helper driver failed with return code: " << helperRunStatus <<"\n";
-        return 3;
-    }
-    std::cout << "      Helper driver executed successfully. Derivatives computed.\n";
+    // int helperCompileStatus = std::system(helperCompileCmd.c_str());
+    // if (helperCompileStatus != 0) {
+    //     std::cerr << "Compilation of helper driver failed with return code: " << helperCompileStatus << "\n";
+    //     return 2;
+    // }
+    // std::cout << "      Helper driver compilation successful.\n";
 
 
-    std::cout << "\n[4.5/5] Execution of drivers and validation not yet implemented.\n";
+    // // ----------------------------------------------------
+    // // PHASE 4: RUN THE DRIVERS
+    // // ----------------------------------------------------
+
+    // // Run the helper driver to compute derivatives
+    // std::cout << "\n[4/6] Running helper driver to compute derivatives...\n";
+    // int helperRunStatus = std::system(".\\generator\\adHelper.exe");
+    // if (helperRunStatus != 0) {
+    //     std::cerr << "Execution of helper driver failed with return code: " << helperRunStatus <<"\n";
+    //     return 3;
+    // }
+    // std::cout << "      Helper driver executed successfully. Derivatives computed.\n";
 
 
-    // Run the compiled AD driver executable
-    // std::cout << "[4/5] Running compiled AD driver...\n";
+    // //Run the compiled AD driver executable
+    // std::cout << "\n[4.5/6] Running compiled AD driver...\n";
     // int runStatus = std::system(".\\generator\\adDrivers.exe");
     // if (runStatus != 0) {
     //     std::cerr << "Execution of compiled AD driver failed!\n";
@@ -211,30 +208,31 @@ int main(int argc, char** argv) {
     // }
     // std::cout << "      AD driver executed successfully.\n";
 
-    // // Run the formula driver on the same parameters
-    // std::cout << "[3/4] Running formula driver...\n";
-    // try {
-    //     if (target_type == "double") {
-    //         runFormulaDriver<double>(std::deque<Param<double>>(
-    //             std::get<std::vector<Param<double>>>(parameters).begin(),
-    //             std::get<std::vector<Param<double>>>(parameters).end()
-    //         ));
-    //     } else if (target_type == "float") {
-    //         runFormulaDriver<float>(std::deque<Param<float>>(
-    //             std::get<std::vector<Param<float>>>(parameters).begin(),
-    //             std::get<std::vector<Param<float>>>(parameters).end()
-    //         ));
-    //     } else if (target_type == "int") {
-    //         runFormulaDriver<int>(std::deque<Param<int>>(
-    //             std::get<std::vector<Param<int>>>(parameters).begin(),
-    //             std::get<std::vector<Param<int>>>(parameters).end()
-    //         ));
-    //     }
-    //     std::cout << "      Formula driver executed successfully.\n";
-    // } catch (const std::exception &e) {
-    //     std::cerr << "Formula driver failed: " << e.what() << "\n";
-    //     return 4;
-    // }
+
+    // Run the formula driver on the same parameters
+    std::cout << "[5/6] Running formula driver...\n";
+    try {
+        if (target_type == "double") {
+            runFormulaDriver<double>(std::deque<Param<double>>(
+                std::get<std::vector<Param<double>>>(parameters).begin(),
+                std::get<std::vector<Param<double>>>(parameters).end()
+            ));
+        } else if (target_type == "float") {
+            runFormulaDriver<float>(std::deque<Param<float>>(
+                std::get<std::vector<Param<float>>>(parameters).begin(),
+                std::get<std::vector<Param<float>>>(parameters).end()
+            ));
+        } else if (target_type == "int") {
+            runFormulaDriver<int>(std::deque<Param<int>>(
+                std::get<std::vector<Param<int>>>(parameters).begin(),
+                std::get<std::vector<Param<int>>>(parameters).end()
+            ));
+        }
+        std::cout << "      Formula driver executed successfully.\n";
+    } catch (const std::exception &e) {
+        std::cerr << "Formula driver failed: " << e.what() << "\n";
+        return 4;
+    }
     
 
 

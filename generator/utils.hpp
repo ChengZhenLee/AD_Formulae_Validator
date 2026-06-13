@@ -141,15 +141,15 @@ std::vector<Param<T>> generateDerivativeSeeds(std::string sequence, const X_t<T>
 }
 
 
-// TODO: get the derivatives from generator/derivatives.txt
+// Get the derivatives from generator/derivatives.bin
 // the derivatives names all start with F
 template<typename T>
 std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>& x0, T h) {
     // Read back the results and return the computed derivative parameter values.
-    std::vector<Param<T>> results = readParameters<T>("generator/derivatives.txt");
+    std::vector<Param<T>> results = readParameters<T>("generator/derivatives.bin");
     std::vector<Param<T>> derivatives;
     for (auto& p : results) {
-        if (p.name.rfind("F", 0)) {
+        if (p.name.starts_with("F")) {
             derivatives.push_back(p);
         }
     }
@@ -313,6 +313,7 @@ void extractElement(ADNested& element, Param<T> &p, size_t index) {
 
 
 // Find a specific parameter by name from a list of parameters
+// Handle std::deque<Param<T>> and const std::deque<Param<T>>
 template <typename T>
 Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& parameters) {
     for (auto& p : parameters) {
@@ -324,8 +325,8 @@ Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& p
 }
 
 template <typename T>
-const Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<T>>& parameters) {
-    for (const auto& p : parameters) {
+Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<T>>& parameters) {
+    for (auto& p : parameters) {
         if (p.name == targetName) {
             return p;
         }

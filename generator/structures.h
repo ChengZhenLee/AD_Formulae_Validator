@@ -27,29 +27,24 @@ using X_t=std::deque<T>;
 template<typename T>
 using Y_t=std::deque<T>;
 
-// Vectorized Tensor
+
 template<typename T>
 struct Tensor {
     std::deque<T> data;
     std::deque<size_t> shape;
     std::vector<size_t> strides;
 
-    // Macro to define to_json() and from_json()
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Tensor, data, shape, strides)
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Tensor, data, shape, strides);
 
     Tensor() = default;
     
-    // Initializer
-    Tensor(std::deque<size_t> dims) : 
-        shape(dims), strides(dims.size()) {
-        // Assign data to 0.0
+    Tensor(std::deque<size_t> dims) : shape(dims), strides(dims.size()) {
         size_t total_size = 1;
         for (auto d : dims) total_size *= d;
-        data.assign(total_size, 0.0);
+        data.assign(total_size, static_cast<T>(0));
 
-        // Calculate the strides
         size_t currentStride = 1;
-        for (int i = dims.size() - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(dims.size()) - 1; i >= 0; i--) {
             strides[i] = currentStride;
             currentStride *= dims[i];
         }
@@ -63,12 +58,10 @@ struct Tensor {
         return index;
     }
 
-    // Addition
     Tensor<T> operator+(const Tensor& other) const {
         if (shape != other.shape) {
             throw std::runtime_error("Tensor shapes must match for addition.");
         }
-
         Tensor result(shape);
         for (size_t i = 0; i < data.size(); i++) {
             result.data[i] = this->data[i] + other.data[i];
@@ -76,23 +69,21 @@ struct Tensor {
         return result;
     }
 
-    // Matrix/tensor contraction: contract last dim of `a` with first dim of `b`
-    // This convenience overload delegates to the general contraction below.
+    // Default: contract last axis of a with first axis of b
     static Tensor<T> product(const Tensor& a, const Tensor& b) {
-        // default: contract a's last axis with b's first axis
-        std::vector<size_t> contractA = { a.shape.size() - 1 };
-        std::vector<size_t> contractB = { 0 };
-        return product(a, b, contractA, contractB);
+        if (a.shape.empty() || b.shape.empty()) {
+            return productGeneralContraction(a, b, {}, {});
+        }
+        return productGeneralContraction(a, b, { a.shape.size() - 1 }, { 0 });
     }
 
-    // General contraction: contract axes specified in contractA with corresponding axes in contractB
-    static Tensor<T> product(const Tensor& a, const Tensor& b, const std::vector<size_t>& contractA, const std::vector<size_t>& contractB) {
+    // General contraction logic
+    static Tensor<T> productGeneralContraction(const Tensor& a, const Tensor& b, const std::vector<size_t>& contractA, const std::vector<size_t>& contractB) {
         if (contractA.size() != contractB.size()) {
             throw std::invalid_argument("contractA and contractB must have the same length");
         }
 
         size_t r = contractA.size();
-        // validate axes and matching dims
         for (size_t i = 0; i < r; ++i) {
             if (contractA[i] >= a.shape.size() || contractB[i] >= b.shape.size())
                 throw std::out_of_range("contraction axis out of range");
@@ -100,7 +91,6 @@ struct Tensor {
                 throw std::invalid_argument("contracted dimensions must match");
         }
 
-        // Build lists of non-contracted axes
         std::vector<size_t> nonA, nonB;
         for (size_t i = 0; i < a.shape.size(); ++i) {
             if (std::find(contractA.begin(), contractA.end(), i) == contractA.end()) nonA.push_back(i);
@@ -109,78 +99,35 @@ struct Tensor {
             if (std::find(contractB.begin(), contractB.end(), i) == contractB.end()) nonB.push_back(i);
         }
 
-        // Result shape: dims of nonA (in order) followed by dims of nonB (in order)
         std::deque<size_t> resShape;
         for (size_t ax : nonA) resShape.push_back(a.shape[ax]);
         for (size_t ax : nonB) resShape.push_back(b.shape[ax]);
 
         Tensor result(resShape);
-
-        // Iterators over result coordinates
         std::vector<size_t> resCoords(result.shape.size(), 0);
-        bool doneRes = result.shape.empty();
-        if (!doneRes) doneRes = false;
 
-        auto increment = [&](std::vector<size_t>& coords, const std::deque<size_t>& shape)->bool {
+        auto increment = [](std::vector<size_t>& coords, const std::deque<size_t>& targetShape) -> bool {
             for (size_t i = 0; i < coords.size(); ++i) {
                 coords[i]++;
-                if (coords[i] < shape[i]) return false;
+                if (coords[i] < targetShape[i]) return false;
                 coords[i] = 0;
             }
-            return true; // wrapped around
+            return true;
         };
 
-        // handle empty result (scalar)
-        if (result.shape.empty()) {
-            // only contracted sum
-            std::vector<size_t> contractIdx(r, 0);
-            bool doneC = (r == 0);
-            T sum = static_cast<T>(0);
-            while (!doneC) {
-                // build coords for a and b
-                std::deque<size_t> coordsA(a.shape.size());
-                for (size_t i = 0; i < nonA.size(); ++i) coordsA[nonA[i]] = 0;
-                for (size_t i = 0; i < r; ++i) coordsA[contractA[i]] = contractIdx[i];
-
-                std::deque<size_t> coordsB(b.shape.size());
-                for (size_t i = 0; i < r; ++i) coordsB[contractB[i]] = contractIdx[i];
-                for (size_t i = 0; i < nonB.size(); ++i) coordsB[nonB[i]] = 0;
-
-                sum += a.data[a.getIndex(coordsA)] * b.data[b.getIndex(coordsB)];
-
-                // increment contractIdx
-                for (size_t p = 0; p < r; ++p) {
-                    contractIdx[p]++;
-                    if (contractIdx[p] < a.shape[contractA[p]]) break;
-                    contractIdx[p] = 0;
-                    if (p == r - 1) doneC = true;
-                }
-                if (r == 0) break;
-            }
-            result.data[0] = sum;
-            return result;
-        }
-
-        // General non-scalar result
         bool finished = false;
         while (!finished) {
-            // Build coordsA and coordsB for current resCoords
-            std::deque<size_t> coordsA(a.shape.size());
-            std::deque<size_t> coordsB(b.shape.size());
+            std::deque<size_t> coordsA(a.shape.size(), 0);
+            std::deque<size_t> coordsB(b.shape.size(), 0);
 
-            // fill non-contracted axes from resCoords
             size_t pos = 0;
-            for (size_t i = 0; i < nonA.size(); ++i) {
-                coordsA[nonA[i]] = resCoords[pos++];
-            }
-            for (size_t i = 0; i < nonB.size(); ++i) {
-                coordsB[nonB[i]] = resCoords[pos++];
-            }
+            for (size_t i = 0; i < nonA.size(); ++i) coordsA[nonA[i]] = resCoords[pos++];
+            for (size_t i = 0; i < nonB.size(); ++i) coordsB[nonB[i]] = resCoords[pos++];
 
-            // Sum over contracted indices
             std::vector<size_t> contractIdx(r, 0);
             bool doneC = (r == 0);
             T sum = static_cast<T>(0);
+
             while (!doneC) {
                 for (size_t i = 0; i < r; ++i) {
                     coordsA[contractA[i]] = contractIdx[i];
@@ -189,29 +136,96 @@ struct Tensor {
 
                 sum += a.data[a.getIndex(coordsA)] * b.data[b.getIndex(coordsB)];
 
-                // increment contractIdx
                 for (size_t p = 0; p < r; ++p) {
                     contractIdx[p]++;
-                    if (contractIdx[p] < a.shape[contractA[p]]) break;
+                    if (r > 0 && contractIdx[p] < a.shape[contractA[p]]) break;
                     contractIdx[p] = 0;
                     if (p == r - 1) doneC = true;
                 }
                 if (r == 0) break;
             }
 
-            // store sum into result
-            std::deque<size_t> coordsR(result.shape.size());
-            for (size_t i = 0; i < result.shape.size(); ++i) coordsR[i] = resCoords[i];
-            result.data[result.getIndex(coordsR)] = sum;
+            if (result.shape.empty()) {
+                result.data[0] = sum;
+                break;
+            } else {
+                std::deque<size_t> coordsR(result.shape.size());
+                for (size_t i = 0; i < result.shape.size(); ++i) coordsR[i] = resCoords[i];
+                result.data[result.getIndex(coordsR)] = sum;
+            }
 
-            // increment resCoords
             finished = increment(resCoords, result.shape);
         }
 
         return result;
     }
 
-    // Compute the result shape for a tensor chain without materializing the data
+    // Multiplies a list of tensors even if they are out of sequence
+    static Tensor<T> product(std::deque<Tensor<T>> tensors) {
+        if (tensors.empty()) {
+            throw std::invalid_argument("Cannot compute product of an empty tensor list.");
+        }
+
+        Tensor<T> result = tensors.front();
+        tensors.pop_front();
+
+        while (!tensors.empty()) {
+            bool foundNext = false;
+
+            for (auto it = tensors.begin(); it != tensors.end(); ++it) {
+                // 1. If either is a scalar, treat as element-wise scaling factor
+                if (result.shape.empty() || it->shape.empty()) {
+                    result = productGeneralContraction(result, *it, {}, {});
+                    tensors.erase(it);
+                    foundNext = true;
+                    break;
+                }
+                
+                // 2. Standard sequential matrix chain contraction
+                if (result.shape.back() == it->shape.front()) {
+                    // Defensive check: Ensure result has dimensions before subtracting
+                    size_t axisA = result.shape.size() > 0 ? (result.shape.size() - 1) : 0;
+                    result = productGeneralContraction(result, *it, { axisA }, { 0 });
+                    tensors.erase(it);
+                    foundNext = true;
+                    break;
+                }
+                
+                // 3. Out-of-sequence scan: look for matching dimensions anywhere inside 'it'
+                auto match_it = std::find(it->shape.begin(), it->shape.end(), result.shape.back());
+                if (match_it != it->shape.end()) {
+                    size_t targetAxisB = std::distance(it->shape.begin(), match_it);
+                    size_t axisA = result.shape.size() > 0 ? (result.shape.size() - 1) : 0;
+                    
+                    // Safety gate: Double-check bounds before delegating execution
+                    if (axisA < result.shape.size() && targetAxisB < it->shape.size()) {
+                        result = productGeneralContraction(result, *it, { axisA }, { targetAxisB });
+                        tensors.erase(it);
+                        foundNext = true;
+                        break;
+                    }
+                }
+            }
+
+            // 4. Emergency Fallback: If out-of-sequence loops can't find a smart match, 
+            // fallback to standard left-to-right calculation, allowing it to throw an explicit dimension mismatch error.
+            if (!foundNext) {
+                Tensor<T> nextTensor = tensors.front();
+                tensors.pop_front();
+                
+                if (result.shape.empty() || nextTensor.shape.empty()) {
+                    result = productGeneralContraction(result, nextTensor, {}, {});
+                } else {
+                    size_t axisA = result.shape.size() > 0 ? (result.shape.size() - 1) : 0;
+                    result = productGeneralContraction(result, nextTensor, { axisA }, { 0 });
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // Static product helper for shape chains
     static std::deque<size_t> productShape(const std::deque<size_t>& aShape, const std::deque<size_t>& bShape) {
         if (aShape.empty()) return bShape;
         if (bShape.empty()) return aShape;
@@ -233,26 +247,6 @@ struct Tensor {
         return resultShape;
     }
 
-    // Multiply a list of tensors
-    static Tensor<T> product(std::deque<Tensor<T>> tensors) {
-        if (tensors.empty()) {
-            throw std::invalid_argument("Cannot compute product of an empty tensor list.");
-        }
-
-        // Start with the first tensor in the deque
-        Tensor<T> result = tensors.front();
-        tensors.pop_front();
-
-        // Iteratively multiply the current result by the next tensor in the list
-        while (!tensors.empty()) {
-            result = product(result, tensors.front());
-            tensors.pop_front();
-        }
-
-        return result;
-    }
-
-    // Validate that a deque of tensors can be multiplied left-to-right
     static bool validateTensorChain(const std::deque<Tensor<T>>& chain) {
         if (chain.size() < 2) return true;
         for (size_t i = 0; i + 1 < chain.size(); ++i) {

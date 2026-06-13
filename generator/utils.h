@@ -4,6 +4,7 @@
 #include "structures.h"
 #include <deque>
 #include <string>
+#include <format>
 
 template<typename T>
 std::vector<Param<T>> generateParameters(std::string sequence);
@@ -32,28 +33,21 @@ void seedPrimal(ADNested& x, const std::vector<Param<T>>& parameters);
 template<typename ADNested, typename T>
 void extractPrimal(ADNested& x, const std::vector<Param<T>>& parameters);
 
-std::string generateNestedADType(std::string sequence);
-
-std::string generateXNestedADType(std::string sequence);
-
-std::string generateYNestedADType(std::string sequence);
-
-std::string getCurrentLayerADType(size_t curOrder, std::string sequence);
-
-std::string getCurrentLayerFunctionName(size_t curOrder);
-
-std::string generateRegisterInputString(size_t curOrder);
-
-std::string generateResetTapeString(std::string sequence);
-
-template<typename T>
+template <typename T>
 Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& parameters);
 
-template<typename T>
-const Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<T>>& parameters);
+template <typename T>
+Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<T>>& parameters);
 
 template<typename T>
 std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>& x0, T h = static_cast<T>(1e-6));
+
+inline std::string makeParamName(const std::string& baseName, size_t order) {
+    if (order == 0) {
+        return baseName;
+    }
+    return std::format("{}_{}", baseName, order);
+}
 
 #include "utils.hpp"
 
