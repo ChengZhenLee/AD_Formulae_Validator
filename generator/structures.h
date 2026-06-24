@@ -69,14 +69,6 @@ struct Tensor {
         return result;
     }
 
-    // Default: contract last axis of a with first axis of b
-    static Tensor<T> product(const Tensor& a, const Tensor& b) {
-        if (a.shape.empty() || b.shape.empty()) {
-            return productGeneralContraction(a, b, {}, {});
-        }
-        return productGeneralContraction(a, b, { a.shape.size() - 1 }, { 0 });
-    }
-
     // General contraction logic
     static Tensor<T> productGeneralContraction(const Tensor& a, const Tensor& b, const std::vector<size_t>& contractA, const std::vector<size_t>& contractB) {
         if (contractA.size() != contractB.size()) {
@@ -160,101 +152,49 @@ struct Tensor {
         return result;
     }
 
-    // Multiplies a list of tensors even if they are out of sequence
-    static Tensor<T> product(std::deque<Tensor<T>> tensors) {
-        if (tensors.empty()) {
-            throw std::invalid_argument("Cannot compute product of an empty tensor list.");
+    static Tensor<T> permuteAxes(const Tensor<T>& source, const std::vector<size_t>& permutation) {
+        // 1. Safety Gate: Verify permutation dimensions match source rank
+        if (permutation.size() != source.shape.size()) {
+            throw std::invalid_argument("Permutation rank must match tensor rank.");
         }
 
-        Tensor<T> result = tensors.front();
-        tensors.pop_front();
+        // 2. Determine the new shape and calculate the original tensor's strides
+        std::deque<size_t> newShape(source.shape.size());
+        for (size_t i = 0; i < permutation.size(); ++i) {
+            newShape[i] = source.shape[permutation[i]];
+        }
 
-        while (!tensors.empty()) {
-            bool foundNext = false;
+        std::vector<size_t> oldStrides = source.strides;
+        
+        // 3. Allocate the new output tensor with the re-ordered shape boundary
+        Tensor<T> result(newShape); // Assumes constructor allocates underlying flat data vector
+        
+        // 4. Multi-dimensional coordinate tracker
+        std::vector<size_t> currentCoords(newShape.size(), 0);
+        size_t totalElements = source.data.size(); // Total flat elements (e.g., d0 * d1 * d2)
 
-            for (auto it = tensors.begin(); it != tensors.end(); ++it) {
-                // 1. If either is a scalar, treat as element-wise scaling factor
-                if (result.shape.empty() || it->shape.empty()) {
-                    result = productGeneralContraction(result, *it, {}, {});
-                    tensors.erase(it);
-                    foundNext = true;
-                    break;
-                }
-                
-                // 2. Standard sequential matrix chain contraction
-                if (result.shape.back() == it->shape.front()) {
-                    // Defensive check: Ensure result has dimensions before subtracting
-                    size_t axisA = result.shape.size() > 0 ? (result.shape.size() - 1) : 0;
-                    result = productGeneralContraction(result, *it, { axisA }, { 0 });
-                    tensors.erase(it);
-                    foundNext = true;
-                    break;
-                }
-                
-                // 3. Out-of-sequence scan: look for matching dimensions anywhere inside 'it'
-                auto match_it = std::find(it->shape.begin(), it->shape.end(), result.shape.back());
-                if (match_it != it->shape.end()) {
-                    size_t targetAxisB = std::distance(it->shape.begin(), match_it);
-                    size_t axisA = result.shape.size() > 0 ? (result.shape.size() - 1) : 0;
-                    
-                    // Safety gate: Double-check bounds before delegating execution
-                    if (axisA < result.shape.size() && targetAxisB < it->shape.size()) {
-                        result = productGeneralContraction(result, *it, { axisA }, { targetAxisB });
-                        tensors.erase(it);
-                        foundNext = true;
-                        break;
-                    }
-                }
+        for (size_t outFlatIndex = 0; outFlatIndex < totalElements; ++outFlatIndex) {
+            // Find corresponding coordinate index mapping in the original tensor space
+            size_t inFlatIndex = 0;
+            for (size_t i = 0; i < permutation.size(); ++i) {
+                // Map the output dimension's current coordinate back to the original stride factor
+                inFlatIndex += currentCoords[i] * oldStrides[permutation[i]];
             }
 
-            // 4. Emergency Fallback: If out-of-sequence loops can't find a smart match, 
-            // fallback to standard left-to-right calculation, allowing it to throw an explicit dimension mismatch error.
-            if (!foundNext) {
-                Tensor<T> nextTensor = tensors.front();
-                tensors.pop_front();
-                
-                if (result.shape.empty() || nextTensor.shape.empty()) {
-                    result = productGeneralContraction(result, nextTensor, {}, {});
-                } else {
-                    size_t axisA = result.shape.size() > 0 ? (result.shape.size() - 1) : 0;
-                    result = productGeneralContraction(result, nextTensor, { axisA }, { 0 });
+            // Copy data point across the memory boundary
+            result.data[outFlatIndex] = source.data[inFlatIndex];
+
+            // Increment multi-dimensional coordinates manually (Row-Major odometer pattern)
+            for (int i = static_cast<int>(newShape.size()) - 1; i >= 0; --i) {
+                currentCoords[i]++;
+                if (currentCoords[i] < newShape[i]) {
+                    break; // Coordinate successfully advanced
                 }
+                currentCoords[i] = 0; // Roll-over axis index to 0, carry over to next higher dimension
             }
         }
 
         return result;
-    }
-
-    // Static product helper for shape chains
-    static std::deque<size_t> productShape(const std::deque<size_t>& aShape, const std::deque<size_t>& bShape) {
-        if (aShape.empty()) return bShape;
-        if (bShape.empty()) return aShape;
-        if (aShape.back() != bShape.front()) return {};
-
-        std::deque<size_t> resultShape;
-        for (size_t i = 0; i < aShape.size() - 1; ++i) resultShape.push_back(aShape[i]);
-        for (size_t i = 1; i < bShape.size(); ++i) resultShape.push_back(bShape[i]);
-        return resultShape;
-    }
-
-    static std::deque<size_t> productShape(const std::deque<Tensor<T>>& chain) {
-        if (chain.empty()) return {};
-        std::deque<size_t> resultShape = chain.front().shape;
-        for (size_t i = 1; i < chain.size(); ++i) {
-            resultShape = productShape(resultShape, chain[i].shape);
-            if (resultShape.empty()) return {};
-        }
-        return resultShape;
-    }
-
-    static bool validateTensorChain(const std::deque<Tensor<T>>& chain) {
-        if (chain.size() < 2) return true;
-        for (size_t i = 0; i + 1 < chain.size(); ++i) {
-            size_t left = chain[i].shape.empty() ? 0 : chain[i].shape.back();
-            size_t right = chain[i+1].shape.empty() ? 0 : chain[i+1].shape.front();
-            if (left != right) return false;
-        }
-        return true;
     }
 };
 
@@ -273,15 +213,16 @@ struct Param {
     ParamRole role;
     std::vector<int> activeOrders = {};
     std::map<size_t, size_t> orderedShape;
+    std::deque<std::string> indexNames = {};
     int highestOrder = 0;
 
     // Macro automatically generates to_json() and from_json()
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Param, tensor, name, role, activeOrders, orderedShape, highestOrder)
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Param, tensor, name, role, activeOrders, orderedShape, highestOrder, indexNames)
 
     Param() = default;
     
-    Param(std::map<size_t, size_t> oShape, std::deque<size_t> shape, std::string inputName, ParamRole inputRole) 
-        : orderedShape(oShape), tensor(shape), name(inputName), role(inputRole) {
+    Param(std::map<size_t, size_t> oShape, std::deque<size_t> shape, std::string inputName, ParamRole inputRole, std::deque<std::string> indexNames) 
+        : orderedShape(oShape), tensor(shape), name(inputName), role(inputRole), indexNames(indexNames) {
         
         std::stringstream ss(inputName);
         std::string segment;

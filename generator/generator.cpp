@@ -139,8 +139,19 @@ std::string generateInterface(std::string sequence, std::string XADNested, std::
     result += "\tx.resize(cm.getXShape());\n";
     result += "\ty.resize(cm.getYShape());\n";
 
+    // Seed primal values first
+    result += "\tseedPrimal(x, parameters);\n\n";
+
+    // Register inputs for all adjoint tapes
+    result += generateRegisterInputString(sequence);
+
     // Run the drivers
     result += std::format("\t{}<{}>(x, y, parameters);\n", functionName, type);
+
+    // Reset all adjoint tapes
+    result += "\t// Clean up all recorded tapes before returning\n";
+    result += generateResetTapeString(sequence); 
+    result += "\n";
 
     // Return the parameters
     result += "\treturn parameters;\n";
@@ -160,14 +171,8 @@ std::string generateTangent(size_t curOrder, std::string sequence, std::string X
     result += std::format("void {0}({1}& x, {2}& y, std::vector<Param<T>> parameters) {{\n", 
         functionName, XADNested, YADNested);
 
-    // Seed the primal values if it is the outer most order
-    if (curOrder == sequence.length()) {
-        // Seed the primal values
-        result += std::format("\tseedPrimal(x, parameters);\n");
-    }
-    
     // Seed values
-    result += std::format("\tseedADForOrder(x, parameters, {}, \"{}\");\n",
+    result += std::format("\tseedADForOrder(x, y, parameters, {}, \"{}\");\n",
         curOrder, sequence);
 
     // Run the lower layer function
@@ -181,7 +186,7 @@ std::string generateTangent(size_t curOrder, std::string sequence, std::string X
     }
 
     // Extract
-    result += std::format("\textractADForOrder(y, parameters, {}, \"{}\");\n",
+    result += std::format("\textractADForOrder(x, y, parameters, {}, \"{}\");\n",
         curOrder, sequence);
     
     // Extract primal values if it is the last layer
@@ -202,51 +207,37 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
     std::string functionName = getCurrentLayerFunctionName(curOrder);
     std::string subFunctionName = getCurrentLayerFunctionName(curOrder - 1);
     std::string curADType = getCurrentLayerADType(curOrder, sequence);
+    size_t outerAdjointOrder = sequence.length() - sequence.find('a');
 
     // Function signature
     result += "template <typename T>\n";
     result += std::format("void {0}({1}& x, {2}& y, std::vector<Param<T>> parameters) {{\n", 
         functionName, XADNested, YADNested);
 
-    // Seed the primal values if it is the outer most order
-    if (curOrder == sequence.length()) {
-        // Seed the primal values
-        result += std::format("\tseedPrimal(x, parameters);\n");
-    }
-
-    // Register values
-    result += generateRegisterInputString(curOrder);
-
-    // Run the lower layer function
-    // Don't pass in parameters to the primal function
+    // Run the lower layer function (executes the underlying math or lower AD layers)
     if (curOrder == 1) {
-        result += std::format("\t{}(x, y);\n", 
-            subFunctionName);
+        result += std::format("\t{}(x, y);\n", subFunctionName);
     } else {
-        result += std::format("\t{}(x, y, parameters);\n",
-            subFunctionName);
+        result += std::format("\t{}(x, y, parameters);\n", subFunctionName);
     }
+
+    // Initialize the tape
+    result += std::format("\t{}::tape::init_adjoints();\n", curADType);
 
     // Seed values
-    result += std::format("\tseedADForOrder(x, parameters, {}, \"{}\");\n",
+    result += std::format("\tseedADForOrder(x, y, parameters, {}, \"{}\");\n",
         curOrder, sequence);
 
-    // Interpret
+    // Interpret the tape
     result += std::format("\t{}::tape::interpret();\n", curADType);
     
-    // Extract
-    result += std::format("\textractADForOrder(y, parameters, {}, \"{}\");\n",
+    // Extract derivatives
+    result += std::format("\textractADForOrder(x, y, parameters, {}, \"{}\");\n",
         curOrder, sequence);
     
-    // Extract primal values if it is the last layer
+    // Extract primal values if it is the base layer (curOrder == 1)
     if (curOrder == 1) {
-        //extract primal
         result += std::format("\textractPrimal(y, parameters);\n");
-    }
-
-    // TODO: Reset all tapes only at the top level
-    if (curOrder == sequence.length()) {
-        result += generateResetTapeString(sequence);
     }
 
     result += "}\n";
@@ -443,21 +434,27 @@ std::string getCurrentLayerFunctionName(size_t curOrder) {
     return std::format("AD_F_{}", curOrder);
 }
 
-// Generate the string required to register an input in an adjoint mode driver
-std::string generateRegisterInputString(size_t curOrder) {
+// Generate the string required to register an input for all adjoint layers
+std::string generateRegisterInputString(std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
     std::string result = "\tfor (size_t i = 0; i < " + std::to_string(xShape) + "; i++) {\n";
-    std::string xVariable = "x[i]";
-    for (int i = 0; i < curOrder - 1; i++) {
-        xVariable += ".value()";
+    
+    for (int i = sequence.length() - 1; i >= 0; i--) {
+        if (sequence[i] == 't') continue;
+
+        std::string xVariable = "x[i]";
+        size_t curOrder = sequence.length() - i;
+        for (int i = 0; i < curOrder - 1; i++) {
+            xVariable += ".value()";
+        }
+        result += std::format("\t\t{}.register_input();\n", xVariable);
     }
-    result += std::format("\t\t{}.register_input();\n", xVariable);
     result += "\t}\n";
     return result;
 }
 
-// Generate the string required to reset all tapes in a (top level) adjoint mode driver
+// Generate the string required to reset all tapes in a (highest level) adjoint mode driver
 std::string generateResetTapeString(std::string sequence) {
     std::string result;
     std::string curSubstring;
@@ -465,6 +462,20 @@ std::string generateResetTapeString(std::string sequence) {
         if (sequence[i] == 'a') {
             curSubstring = sequence.substr(0, i + 1);
             result += std::format("\t{}::tape::reset();\n", generateNestedADType(curSubstring));
+        }
+    }
+    return result;
+}
+
+
+// Generate the string required to initialize the adjoints of all tapes in a (highest level) adjoint mode driver
+std::string generateInitAdjointsString(std::string sequence) {
+    std::string result;
+    std::string curSubstring;
+    for (int i = 0; i < sequence.length(); i++) {
+        if (sequence[i] == 'a') {
+            curSubstring = sequence.substr(0, i + 1);
+            result = std::format("\t{}::tape::init_adjoints();\n", generateNestedADType(curSubstring)) + result;
         }
     }
     return result;

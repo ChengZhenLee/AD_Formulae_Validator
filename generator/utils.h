@@ -16,16 +16,18 @@ template<typename T>
 std::vector<Param<T>> generateDerivativeSeeds(std::string sequence, const X_t<T>& x);
 
 template<typename ADNested, typename T>
-void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords);
+void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, 
+    std::deque<size_t>& leftCoords, std::deque<size_t>& rightCoords, size_t& primalIndex);
 
 template<typename ADNested, typename T>
-void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords);
+void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence, 
+    std::deque<size_t>& leftCoords, std::deque<size_t>& rightCoords, size_t& primalIndex);
 
-template<typename ADNested, typename T>
-void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence);
+template<typename ADNestedX, typename ADNestedY, typename T>
+void seedADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence);
 
-template<typename ADNested, typename T>
-void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence);
+template<typename ADNestedX, typename ADNestedY, typename T>
+void extractADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t curOrder, const std::string& sequence);
 
 template<typename ADNested, typename T>
 void seedPrimal(ADNested& x, const std::vector<Param<T>>& parameters);

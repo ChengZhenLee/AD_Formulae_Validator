@@ -49,7 +49,8 @@ std::string getCurrentLayerADType(size_t curOrder, std::string sequence);
 std::string getCurrentLayerFunctionName(size_t curOrder);
 
 // Code string generation helpers
-std::string generateRegisterInputString(size_t curOrder);
+std::string generateRegisterInputString(std::string sequence);
 std::string generateResetTapeString(std::string sequence);
+std::string generateInitAdjointsString(std::string sequence);
 
 #endif

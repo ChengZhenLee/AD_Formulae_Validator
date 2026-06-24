@@ -56,9 +56,10 @@ std::vector<Param<T>> readParameters(const std::string &filename) {
         std::deque<size_t> shape = elem.at("tensor").at("shape").get<std::deque<size_t>>();
         std::string name = elem.at("name").get<std::string>();
         ParamRole role = elem.at("role").get<ParamRole>();
+        std::deque<std::string> indexNames = elem.at("indexNames").get<std::deque<std::string>>();
 
         // Construct Param using available constructor
-        Param<T> p(orderedShape, shape, name, role);
+        Param<T> p(orderedShape, shape, name, role, indexNames);
 
         // Fill tensor data
         if (elem.at("tensor").contains("data")) {

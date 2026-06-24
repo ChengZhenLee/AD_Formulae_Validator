@@ -4,9 +4,9 @@
 #include "generator/generator.h"
 #include "generator/configManager.h"
 #include "generator/structures.h"
-#include "generator/utils.h"
 #include "generator/readWrite.h"
 #include "generator/formulaDriver.hpp"
+#include "generator/validator.h"
 
 
 // Helper function to run a system command and capture its text output
@@ -150,83 +150,82 @@ int main(int argc, char** argv) {
     // ----------------------------------------------------
     // PHASE 3: COMPILE AD DRIVER ONLY
     // ----------------------------------------------------
-    // std::cout << "\n[3/6] Compiling dynamic AD driver...\n";
+    std::cout << "\n[3/6] Compiling dynamic AD driver...\n";
     
-    // // Compile only the freshly generated AD source file
-    // std::string compileCmd = "g++ -std=c++20 -g -O0 "
-    //                      "generator/adDrivers.cpp "
-    //                      "-I ../generator "
-    //                      "-I ../include/ad "      // To find ad.h
-    //                      "-I ../include "          // To find Eigen and nlohmann
-    //                      "-o generator/adDrivers.exe";
+    // Compile only the freshly generated AD source file
+    std::string compileCmd = "g++ -std=c++20 -g -O0 "
+                         "generator/adDrivers.cpp "
+                         "-I ../generator "
+                         "-I ../include/ad "      // To find ad.h
+                         "-I ../include "          // To find Eigen and nlohmann
+                         "-o generator/adDrivers.exe";
 
-    // int compileStatus = std::system(compileCmd.c_str());
+    int compileStatus = std::system(compileCmd.c_str());
 
-    // if (compileStatus != 0) {
-    //     std::cerr << "Compilation of generated AD driver failed with return code: " << compileStatus << "\n";
-    //     return 2;
-    // }
-    // std::cout << "      AD drivers compilation successful.\n";
+    if (compileStatus != 0) {
+        std::cerr << "Compilation of generated AD driver failed with return code: " << compileStatus << "\n";
+        return 2;
+    }
+    std::cout << "      AD drivers compilation successful.\n";
 
-    // // Compile the helper driver
-    // std::cout << "\n[3.5/6] Compiling helper driver...\n";
-    // std::string helperCompileCmd = "g++ -std=c++20 -g -O0 "
-    //                                "generator/adHelper.cpp "
-    //                                "-I ../generator "
-    //                                "-I ../include/ad "
-    //                                "-I ../include "
-    //                                "-o generator/adHelper.exe";
+    // Compile the helper driver
+    std::cout << "\n[3.5/6] Compiling helper driver...\n";
+    std::string helperCompileCmd = "g++ -std=c++20 -g -O0 "
+                                   "generator/adHelper.cpp "
+                                   "-I ../generator "
+                                   "-I ../include/ad "
+                                   "-I ../include "
+                                   "-o generator/adHelper.exe";
 
-    // int helperCompileStatus = std::system(helperCompileCmd.c_str());
-    // if (helperCompileStatus != 0) {
-    //     std::cerr << "Compilation of helper driver failed with return code: " << helperCompileStatus << "\n";
-    //     return 2;
-    // }
-    // std::cout << "      Helper driver compilation successful.\n";
-
-
-    // // ----------------------------------------------------
-    // // PHASE 4: RUN THE DRIVERS
-    // // ----------------------------------------------------
-
-    // // Run the helper driver to compute derivatives
-    // std::cout << "\n[4/6] Running helper driver to compute derivatives...\n";
-    // int helperRunStatus = std::system(".\\generator\\adHelper.exe");
-    // if (helperRunStatus != 0) {
-    //     std::cerr << "Execution of helper driver failed with return code: " << helperRunStatus <<"\n";
-    //     return 3;
-    // }
-    // std::cout << "      Helper driver executed successfully. Derivatives computed.\n";
+    int helperCompileStatus = std::system(helperCompileCmd.c_str());
+    if (helperCompileStatus != 0) {
+        std::cerr << "Compilation of helper driver failed with return code: " << helperCompileStatus << "\n";
+        return 2;
+    }
+    std::cout << "      Helper driver compilation successful.\n";
 
 
-    // //Run the compiled AD driver executable
-    // std::cout << "\n[4.5/6] Running compiled AD driver...\n";
-    // int runStatus = std::system(".\\generator\\adDrivers.exe");
-    // if (runStatus != 0) {
-    //     std::cerr << "Execution of compiled AD driver failed!\n";
-    //     return 3;
-    // }
-    // std::cout << "      AD driver executed successfully.\n";
+    // ----------------------------------------------------
+    // PHASE 4: RUN THE DRIVERS
+    // ----------------------------------------------------
+
+    // Run the helper driver to compute derivatives
+    std::cout << "\n[4/6] Running helper driver to compute derivatives...\n";
+    int helperRunStatus = std::system(".\\generator\\adHelper.exe");
+    if (helperRunStatus != 0) {
+        std::cerr << "Execution of helper driver failed with return code: " << helperRunStatus <<"\n";
+        return 3;
+    }
+    std::cout << "      Helper driver executed successfully. Derivatives computed.\n";
+
+
+    //Run the compiled AD driver executable
+    std::cout << "\n[4.5/6] Running compiled AD driver...\n";
+    int runStatus = std::system(".\\generator\\adDrivers.exe");
+    if (runStatus != 0) {
+        std::cerr << "Execution of compiled AD driver failed!\n";
+        return 3;
+    }
+    std::cout << "      AD driver executed successfully.\n";
 
 
     // Run the formula driver on the same parameters
     std::cout << "[5/6] Running formula driver...\n";
+
+    ParameterContainer formulaResults;
     try {
         if (target_type == "double") {
-            runFormulaDriver<double>(std::deque<Param<double>>(
-                std::get<std::vector<Param<double>>>(parameters).begin(),
-                std::get<std::vector<Param<double>>>(parameters).end()
-            ));
+            formulaResults = runFormulaDriver<double>(
+                std::get<std::vector<Param<double>>>(parameters)
+            );
         } else if (target_type == "float") {
-            runFormulaDriver<float>(std::deque<Param<float>>(
-                std::get<std::vector<Param<float>>>(parameters).begin(),
-                std::get<std::vector<Param<float>>>(parameters).end()
-            ));
+            formulaResults = runFormulaDriver<float>(
+                std::get<std::vector<Param<float>>>(parameters)
+            );
         } else if (target_type == "int") {
-            runFormulaDriver<int>(std::deque<Param<int>>(
-                std::get<std::vector<Param<int>>>(parameters).begin(),
-                std::get<std::vector<Param<int>>>(parameters).end()
-            ));
+            formulaResults = runFormulaDriver<int>(
+                std::get<std::vector<Param<int>>>(parameters)
+            );
         }
         std::cout << "      Formula driver executed successfully.\n";
     } catch (const std::exception &e) {
@@ -239,4 +238,25 @@ int main(int argc, char** argv) {
     // ----------------------------------------------------
     // PHASE 5: VALIDATION
     // ----------------------------------------------------
+    std::cout << "[6/6] Validate results";
+
+    try {
+        if (target_type == "double") {
+            validateParameters<double>(std::get<std::vector<Param<double>>>(formulaResults), 
+                "generator/results.bin", "generator/validation_results.txt"
+            );
+        } else if (target_type == "float") {
+            validateParameters<float>(std::get<std::vector<Param<float>>>(formulaResults), 
+                "generator/results.bin", "generator/validation_results.txt"
+            );
+        } else if (target_type == "int") {
+            validateParameters<int>(std::get<std::vector<Param<int>>>(formulaResults), 
+                "generator/results.bin", "generator/validation_results.txt"
+            );
+        }
+        std::cout << "      Validator executed successfully.\n";
+    } catch (const std::exception &e) {
+        std::cerr << "Validator failed: " << e.what() << "\n";
+        return 5;
+    }
 }

@@ -9,7 +9,7 @@
 
 
 template<typename T>
-void runFormulaDriver(std::deque<Param<T>> parameters);
+void runFormulaDriver(std::deque<Param<T>>& parameters);
 
 template<typename T>
 void formulaDriver(

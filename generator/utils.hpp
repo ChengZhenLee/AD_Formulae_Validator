@@ -38,8 +38,20 @@ std::vector<Param<T>> generateParameters(std::string sequence) {
     // Base case
     if (order == 0 || sequence.empty()) {
         std::vector<Param<T>> base;
-        base.emplace_back(std::map<size_t, size_t>{}, std::deque<size_t>{xShape}, "X", ParamRole::Input);
-        base.emplace_back(std::map<size_t, size_t>{}, std::deque<size_t>{yShape}, "Y", ParamRole::Output);
+        base.emplace_back(
+            std::map<size_t, size_t>{}, 
+            std::deque<size_t>{xShape}, 
+            "X", 
+            ParamRole::Input, 
+            std::deque<std::string>{"i"});
+
+        base.emplace_back(
+            std::map<size_t, size_t>{}, 
+            std::deque<size_t>{yShape}, 
+            "Y", 
+            ParamRole::Output, 
+            std::deque<std::string>{"j"});
+
         return base;
     }
 
@@ -53,17 +65,20 @@ std::vector<Param<T>> generateParameters(std::string sequence) {
         std::deque<size_t> newShapes = p.tensor.shape;
         ParamRole newRole = p.role;
         std::string newName = std::format("{}_{}", p.name, std::to_string(order));
+        std::deque<std::string> newIndexNames = p.indexNames;
 
         if (curMode == 't') {
             newShapes.push_back(V);
             newOShape[order] = V;
+            newIndexNames.push_back(std::format("v_{}", order));
         } else if (curMode == 'a') {
             newShapes.push_front(U);
             newOShape[order] = U;
+            newIndexNames.push_front(std::format("u_{}", order));
             newRole = (p.role == ParamRole::Input) ? ParamRole::Output : ParamRole::Input;
         }
 
-        result.emplace_back(newOShape, newShapes, newName, newRole);
+        result.emplace_back(newOShape, newShapes, newName, newRole, newIndexNames);
     }
 
     return result;
@@ -134,6 +149,13 @@ std::vector<Param<T>> generateDerivativeSeeds(std::string sequence, const X_t<T>
         // But be careful not to change the original y=f(x)
         if (p.name.rfind("Y", 0) == 0 && p.name.length() > 1) {
             p.name[0] = 'F';
+
+            // Populate with the correct indices
+            std::deque<std::string> newIndexNames = {"j"};
+            for (int i = 0; i < p.activeOrders.size(); i++) {
+                newIndexNames.push_back("i");
+            }
+            p.indexNames = newIndexNames;
         }
     }
 
@@ -159,10 +181,15 @@ std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>&
 
 // Seed the nested AD type
 template<typename ADNested, typename T>
-void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords) {
+void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, 
+    std::deque<size_t>& leftCoords, std::deque<size_t>& rightCoords, size_t& primalIndex) {
     if constexpr(!isADNestedType<ADNested>) {
         if (curOrder > sequence.length()) {
-            x = p.tensor.data[p.tensor.getIndex(coords)];
+            std::deque<size_t> finalCoords = leftCoords;
+            std::reverse(finalCoords.begin(), finalCoords.end());
+            finalCoords.push_back(primalIndex);
+            finalCoords.insert(finalCoords.end(), rightCoords.begin(), rightCoords.end());
+            x = p.tensor.data[p.tensor.getIndex(finalCoords)];
             return;
         }
     }
@@ -174,33 +201,41 @@ void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& 
             // COMPILER GUARD: Only compile this loop if x actually has a .tangent() method
             if constexpr (requires { x.tangent(0); }) {
                 for (size_t i = 0; i < curShape; i++) {
-                    std::deque<size_t> nextCoords = coords;
-                    nextCoords.push_back(i);
-                    seedAD(x.tangent(i), p, curOrder + 1, sequence, nextCoords);
+                    rightCoords.push_back(i);
+                    seedAD(x.tangent(i), p, curOrder + 1, sequence, 
+                    leftCoords, rightCoords, primalIndex);
+                    rightCoords.pop_back();
                 }
             }
         } else if (curType == 'a') {
             // COMPILER GUARD: Only compile this loop if x actually has an .adjoint() method
             if constexpr (requires { x.adjoint(0); }) {
                 for (size_t i = 0; i < curShape; i++) {
-                    std::deque<size_t> nextCoords = coords;
-                    nextCoords.push_front(i);
-                    seedAD(x.adjoint(i), p, curOrder + 1, sequence, nextCoords);
+                    leftCoords.push_back(i);
+                    seedAD(x.adjoint(i), p, curOrder + 1, sequence, 
+                    leftCoords, rightCoords, primalIndex);
+                    leftCoords.pop_back();
                 }
             }
         }
     } else {
         if constexpr(requires { x.value(); })
-        seedAD(x.value(), p, curOrder + 1, sequence, coords);
+        seedAD(x.value(), p, curOrder + 1, sequence, 
+        leftCoords, rightCoords, primalIndex);
     }
 }
 
 // Extract the nested AD type
 template<typename ADNested, typename T>
-void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence, std::deque<size_t> coords) {
+void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence, 
+    std::deque<size_t>& leftCoords, std::deque<size_t>& rightCoords, size_t& primalIndex) {
     if constexpr(!isADNestedType<ADNested>) {
         if (curOrder > sequence.length()) {
-            p.tensor.data[p.tensor.getIndex(coords)] = y;
+            std::deque<size_t> finalCoords = leftCoords;
+            std::reverse(finalCoords.begin(), finalCoords.end());
+            finalCoords.push_back(primalIndex);
+            finalCoords.insert(finalCoords.end(), rightCoords.begin(), rightCoords.end());
+            p.tensor.data[p.tensor.getIndex(finalCoords)] = y;
             return;
         }
     }
@@ -208,14 +243,14 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
     char curType = sequence[sequence.length() - curOrder];
     if (p.isActive(curOrder)) {
         size_t curShape = p.getShapeAt(curOrder);
-        
         if (curType == 't') {
             // COMPILER GUARD: Only compile this loop if y actually has a .tangent() method
             if constexpr(requires { y.tangent(0); }) {
                 for (size_t i = 0; i < curShape; i++) {
-                    std::deque<size_t> nextCoords = coords;
-                    nextCoords.push_back(i);
-                    extractAD(y.tangent(i), p, curOrder + 1, sequence, nextCoords);
+                    rightCoords.push_back(i);
+                    extractAD(y.tangent(i), p, curOrder + 1, sequence,
+                    leftCoords, rightCoords, primalIndex);
+                    rightCoords.pop_back();
                 }
             }
             
@@ -223,41 +258,65 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
             // COMPILER GUARD: Only compile this loop if y actually has a .adjoint() method
             if constexpr(requires { y.adjoint(0); }) {
                 for (size_t i = 0; i < curShape; i++) {
-                    std::deque<size_t> nextCoords = coords;
-                    nextCoords.push_front(i);
-                    extractAD(y.adjoint(i), p, curOrder + 1, sequence, nextCoords);
+                    leftCoords.push_front(i);
+                    extractAD(y.adjoint(i), p, curOrder + 1, sequence, 
+                    leftCoords, rightCoords, primalIndex);
+                    leftCoords.pop_back();
                 }
             }
         }
     } else {
         if constexpr(requires { y.value(); })
-            extractAD(y.value(), p, curOrder + 1, sequence, coords);
+            extractAD(y.value(), p, curOrder + 1, sequence, 
+            leftCoords, rightCoords, primalIndex);
     }
 }
 
 // Seeds all parameters for a specific order/layer
-template<typename ADNested, typename T>
-void seedADForOrder(ADNested& x, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
-    ConfigManager cm = ConfigManager::getInstance();
-
+template<typename ADNestedX, typename ADNestedY, typename T>
+void seedADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     for (Param<T>& p : parameters) {
         if (p.highestOrder == targetOrder && p.isActive(targetOrder) && p.role == ParamRole::Input) {
-            for (size_t i = 0; i < cm.getXShape(); i++) {
-                seedAD(x[i], p, 1, sequence, {i});
+            if (p.name[0] == 'X') {
+                for (size_t i = 0; i < x.size(); i++) {
+                    std::deque<size_t> leftCoords = {};
+                    std::deque<size_t> rightCoords = {};
+                    seedAD(x[i], p, 1, sequence, 
+                    leftCoords, rightCoords, i);
+                }
+            }
+            else if (p.name[0] == 'Y' || p.name[0] == 'F') {
+                for (size_t j = 0; j < y.size(); j++) {
+                    std::deque<size_t> leftCoords = {};
+                    std::deque<size_t> rightCoords = {};
+                    seedAD(y[j], p, 1, sequence, 
+                    leftCoords, rightCoords, j);
+                }
             }
         }
     }
 }
 
 // Extracts all values for a specific order/layer
-template<typename ADNested, typename T>
-void extractADForOrder(ADNested& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
-    ConfigManager cm = ConfigManager::getInstance();
-
+template<typename ADNestedX, typename ADNestedY, typename T>
+void extractADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     for (Param<T>& p : parameters) {
         if (p.highestOrder == targetOrder && p.isActive(targetOrder) && p.role == ParamRole::Output) {
-            for (size_t j = 0; j < cm.getYShape(); j++) {
-                extractAD(y[j], p, 1, sequence, {j});
+            if (p.name[0] == 'X') {
+                for (size_t i = 0; i < x.size(); i++) {
+                    std::deque<size_t> leftCoords = {};
+                    std::deque<size_t> rightCoords = {};
+                    extractAD(x[i], p, 1, sequence, 
+                    leftCoords, rightCoords, i);
+                }
+            }
+            else if (p.name[0] == 'Y' || p.name[0] == 'F') {
+                for (size_t j = 0; j < y.size(); j++) {
+                    std::deque<size_t> leftCoords = {};
+                    std::deque<size_t> rightCoords = {};
+                    extractAD(y[j], p, 1, sequence, 
+                    leftCoords, rightCoords, j);
+                }
             }
         }
     }
@@ -321,6 +380,20 @@ Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& p
             return p;
         }
     }
+    // === TEMPORARY DEBUG DUMP ===
+    std::cout << "\n========================================\n";
+    std::cout << "   DUMPING ALL PARAMETERS FROM FILE     \n";
+    std::cout << "========================================\n";
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        std::cout << "Index [" << i << "] "
+                  << "Name: " << parameters[i].name << " | "
+                  << "Role: " << (parameters[i].role == ParamRole::Input ? "Input" : "Output") << " | "
+                  << "Shape: [";
+        for (size_t s : parameters[i].tensor.shape) std::cout << s << " ";
+        std::cout << "]\n";
+    }
+    std::cout << "========================================\n\n";
+    // === END DEBUG DUMP ===
     throw std::runtime_error(std::format("Parameter not found: {}", targetName));
 }
 
@@ -331,6 +404,20 @@ Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<
             return p;
         }
     }
+    // === TEMPORARY DEBUG DUMP ===
+    std::cout << "\n========================================\n";
+    std::cout << "   DUMPING ALL PARAMETERS FROM FILE     \n";
+    std::cout << "========================================\n";
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        std::cout << "Index [" << i << "] "
+                  << "Name: " << parameters[i].name << " | "
+                  << "Role: " << (parameters[i].role == ParamRole::Input ? "Input" : "Output") << " | "
+                  << "Shape: [";
+        for (size_t s : parameters[i].tensor.shape) std::cout << s << " ";
+        std::cout << "]\n";
+    }
+    std::cout << "========================================\n\n";
+    // === END DEBUG DUMP ===
     throw std::runtime_error(std::format("Parameter not found: {}", targetName));
 }
 

@@ -1,4 +1,4 @@
 .cache
-build
+build/
 .github
 validation_results.txt
