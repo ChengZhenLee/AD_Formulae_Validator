@@ -1,6 +1,8 @@
 #include <iostream>
 #include <random>
 #include <variant>
+#include <fstream>
+#include <filesystem>
 #include "generator/generator.h"
 #include "generator/configManager.h"
 #include "generator/structures.h"
@@ -8,34 +10,18 @@
 #include "generator/formulaDriver.hpp"
 #include "generator/validator.h"
 
+namespace fs = std::filesystem;
 
-// Helper function to run a system command and capture its text output
-std::string runCommand(const std::string& cmd) {
-    std::string result;
-    char buffer[128];
-    // Use _popen on Windows, popen on Linux/macOS
-    #ifdef _WIN32
-        FILE* pipe = _popen(cmd.c_str(), "r");
-    #else
-        FILE* pipe = popen(cmd.c_str(), "r");
-    #endif
+using ParameterContainer = std::variant<
+    std::vector<Param<double>>,
+    std::vector<Param<float>>,
+    std::vector<Param<int>>
+>;
 
-    if (!pipe) return "ERROR";
-    
-    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-        result += buffer;
-    }
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-    #ifdef _WIN32
-        _pclose(pipe);
-    #else
-        pclose(pipe);
-    #endif
-        return result;
-}
-
-
-// Helper function to fill input with random values
 template<typename T>
 void fillWithRandomValues(X_t<T>& x_input) {
     std::random_device rd;
@@ -53,210 +39,203 @@ void fillWithRandomValues(X_t<T>& x_input) {
     }
 }
 
+// Struct to track our build states
+struct PipelineCache {
+    std::string last_sequence = "";
+    size_t last_length = 0;
 
-int main(int argc, char** argv) {
-    std::cout << "=== AD Validator Pipeline Started ===\n";
+    void load(const std::string& filepath) {
+        std::ifstream f(filepath);
+        if (f.is_open()) {
+            std::getline(f, last_sequence);
+            f >> last_length;
+        }
+    }
 
-    // ----------------------------------------------------
-    // PHASE 1: LOAD CONFIG & GENERATE CODE
-    // ----------------------------------------------------
-    std::cout << "\n[1/6] Generating AD drivers...\n";
-    ConfigManager::getInstance().load("generator/configs.txt");
-    ConfigManager cm = ConfigManager::getInstance();
+    void save(const std::string& filepath) const {
+        std::ofstream f(filepath);
+        if (f.is_open()) {
+            f << last_sequence << "\n" << last_length;
+        }
+    }
+};
 
+// ============================================================================
+// PIPELINE STAGES
+// ============================================================================
+
+bool handleADDriverCompilation(const std::string& current_sequence, const PipelineCache& cache) {
+    bool needs_rebuild = (current_sequence != cache.last_sequence) || !fs::exists("generator/adDrivers.exe");
+    
+    if (!needs_rebuild) {
+        std::cout << "--> Sequence unchanged. Skipping AD driver generation & compilation.\n";
+        return true;
+    }
+
+    std::cout << "\n[1/6] Generating & Compiling AD drivers (Sequence Changed)...\n";
     try {
         generateADHeader("generator/adDrivers.h");
-        generateADDrivers("generator/adDrivers.cpp"); // Generates generator/driver_ad.cpp and generator/driver_formula.cpp
+        generateADDrivers("generator/adDrivers.cpp");
     } catch (const std::exception &e) {
         std::cerr << "Generation failed: " << e.what() << "\n";
-        return 1;
+        return false;
     }
-    std::cout << "Succesfully generated AD drivers\n";
 
-    std::cout << "\n[1.5/6] Generating and compiling helper drivers for derivatives...\n";
+    std::string compileCmd = "g++ -std=c++20 -g -O0 generator/adDrivers.cpp "
+                             "-I ../generator -I ../include/ad -I ../include -o generator/adDrivers.exe";
+    if (std::system(compileCmd.c_str()) != 0) {
+        std::cerr << "Compilation of AD driver failed.\n";
+        return false;
+    }
+    return true;
+}
+
+bool handleHelperDriverCompilation(size_t current_length, const PipelineCache& cache) {
+    bool needs_rebuild = (current_length != cache.last_length) || !fs::exists("generator/adHelper.exe");
+
+    if (!needs_rebuild) {
+        std::cout << "--> Sequence length unchanged. Skipping Helper driver generation & compilation.\n";
+        return true;
+    }
+
+    std::cout << "\n[1.5/6] Generating & Compiling helper drivers (Length Changed)...\n";
     try {
         generateHelperHeader("generator/adHelper.h");
         generateHelperDrivers("generator/adHelper.cpp");
     } catch (const std::exception &e) {
         std::cerr << "Helper driver generation failed: " << e.what() << "\n";
-        return 2;
+        return false;
     }
-    std::cout << "Succesfully generated helper drivers\n";
 
+    std::string helperCompileCmd = "g++ -std=c++20 -g -O0 generator/adHelper.cpp "
+                                   "-I ../generator -I ../include/ad -I ../include -o generator/adHelper.exe";
+    if (std::system(helperCompileCmd.c_str()) != 0) {
+        std::cerr << "Compilation of helper driver failed.\n";
+        return false;
+    }
+    return true;
+}
 
-    // ----------------------------------------------------
-    // PHASE 2: GENERATE AND WRITE PARAMETERS INTO A FILE
-    // ----------------------------------------------------
-    std::cout << "\n[2/6] Generating Input Seeds...\n";
-
-    // 1. Determine how x_input is populated (Manual vs. Random)
-    using ParameterContainer = std::variant<
-        std::vector<Param<double>>,
-        std::vector<Param<float>>,
-        std::vector<Param<int>>
-    >;
+ParameterContainer generateSeeds(const std::string& target_type, ConfigManager& cm, X_t<double>& x_input) {
+    std::cout << "\n[2/6] Generating Input & Derivative Seeds...\n";
     ParameterContainer parameters;
-    X_t<double> x_input; 
-    size_t input_size = cm.getXShape(); // Define or fetch the required size of your input vector
 
-    // Default or fallback: Initialize a random input
-    x_input.resize(input_size);
-    fillWithRandomValues(x_input);
-
-    // Determine what data type the input is and generate the seeds randomly
-    std::string target_type = cm.getType();
     if (target_type == "double") {
         parameters = generateRandomSeeds<double>(cm.getSequence(), x_input);
         writeParameters<double>(std::get<std::vector<Param<double>>>(parameters), "generator/parameters.bin");
-    } 
-    else if (target_type == "float") {
-        // If x_input was double, convert it to float for this branch
-        X_t<float> x_input_float(x_input.begin(), x_input.end());
         
-        parameters = generateRandomSeeds<float>(cm.getSequence(), x_input_float);
-        writeParameters<float>(std::get<std::vector<Param<float>>>(parameters), "generator/parameters.bin");
-    } 
-    else if (target_type == "int") {
-        // Convert x_input to int for this branch
-        X_t<int> x_input_int(x_input.begin(), x_input.end());
-        
-        parameters = generateRandomSeeds<int>(cm.getSequence(), x_input_int);
-        writeParameters<int>(std::get<std::vector<Param<int>>>(parameters), "generator/parameters.bin");
-    } 
-    else {
-        std::cerr << "Error: Unsupported data type requested in config: " << target_type << "\n";
-    }
-
-
-    // Generate derivative seeds: create parameters with X and X_k (with identity seeding)
-    std::cout << "\n[2.5/6] Generating derivative seeds...\n";
-    
-    if (target_type == "double") {
         auto derivSeeds = generateDerivativeSeeds<double>(cm.getSequence(), x_input);
         writeParameters<double>(derivSeeds, "generator/derivatives_seeds.bin");
-    }
+    } 
     else if (target_type == "float") {
         X_t<float> x_input_float(x_input.begin(), x_input.end());
+        parameters = generateRandomSeeds<float>(cm.getSequence(), x_input_float);
+        writeParameters<float>(std::get<std::vector<Param<float>>>(parameters), "generator/parameters.bin");
+        
         auto derivSeeds = generateRandomSeeds<float>(cm.getSequence(), x_input_float);
         writeParameters<float>(derivSeeds, "generator/derivatives_seeds.bin");
-    }
+    } 
     else if (target_type == "int") {
         X_t<int> x_input_int(x_input.begin(), x_input.end());
+        parameters = generateRandomSeeds<int>(cm.getSequence(), x_input_int);
+        writeParameters<int>(std::get<std::vector<Param<int>>>(parameters), "generator/parameters.bin");
+        
         auto derivSeeds = generateRandomSeeds<int>(cm.getSequence(), x_input_int);
         writeParameters<int>(derivSeeds, "generator/derivatives_seeds.bin");
     }
+    return parameters;
+}
 
-
-    // ----------------------------------------------------
-    // PHASE 3: COMPILE AD DRIVER ONLY
-    // ----------------------------------------------------
-    std::cout << "\n[3/6] Compiling dynamic AD driver...\n";
+bool runExecutables() {
+    std::cout << "\n[4/6] Running compiled drivers...\n";
     
-    // Compile only the freshly generated AD source file
-    std::string compileCmd = "g++ -std=c++20 -g -O0 "
-                         "generator/adDrivers.cpp "
-                         "-I ../generator "
-                         "-I ../include/ad "      // To find ad.h
-                         "-I ../include "          // To find Eigen and nlohmann
-                         "-o generator/adDrivers.exe";
-
-    int compileStatus = std::system(compileCmd.c_str());
-
-    if (compileStatus != 0) {
-        std::cerr << "Compilation of generated AD driver failed with return code: " << compileStatus << "\n";
-        return 2;
+    // Windows vs Posix compatibility handling for execution paths if required, 
+    // keeping your original windows dot-slash format here:
+    if (std::system(".\\generator\\adHelper.exe") != 0) {
+        std::cerr << "Execution of helper driver failed!\n";
+        return false;
     }
-    std::cout << "      AD drivers compilation successful.\n";
-
-    // Compile the helper driver
-    std::cout << "\n[3.5/6] Compiling helper driver...\n";
-    std::string helperCompileCmd = "g++ -std=c++20 -g -O0 "
-                                   "generator/adHelper.cpp "
-                                   "-I ../generator "
-                                   "-I ../include/ad "
-                                   "-I ../include "
-                                   "-o generator/adHelper.exe";
-
-    int helperCompileStatus = std::system(helperCompileCmd.c_str());
-    if (helperCompileStatus != 0) {
-        std::cerr << "Compilation of helper driver failed with return code: " << helperCompileStatus << "\n";
-        return 2;
+    if (std::system(".\\generator\\adDrivers.exe") != 0) {
+        std::cerr << "Execution of AD driver failed!\n";
+        return false;
     }
-    std::cout << "      Helper driver compilation successful.\n";
+    return true;
+}
 
+ParameterContainer runFormula(const std::string& target_type, const ParameterContainer& parameters) {
+    std::cout << "\n[5/6] Running formula driver...\n";
+    if (target_type == "double") {
+        return runFormulaDriver<double>(std::get<std::vector<Param<double>>>(parameters));
+    } else if (target_type == "float") {
+        return runFormulaDriver<float>(std::get<std::vector<Param<float>>>(parameters));
+    } else {
+        return runFormulaDriver<int>(std::get<std::vector<Param<int>>>(parameters));
+    }
+}
 
-    // ----------------------------------------------------
-    // PHASE 4: RUN THE DRIVERS
-    // ----------------------------------------------------
+void validate(const std::string& target_type, const ParameterContainer& formulaResults) {
+    std::cout << "\n[6/6] Validating results...\n";
+    if (target_type == "double") {
+        validateParameters<double>(std::get<std::vector<Param<double>>>(formulaResults), "generator/results.bin", "generator/validation_results.txt");
+    } else if (target_type == "float") {
+        validateParameters<float>(std::get<std::vector<Param<float>>>(formulaResults), "generator/results.bin", "generator/validation_results.txt");
+    } else if (target_type == "int") {
+        validateParameters<int>(std::get<std::vector<Param<int>>>(formulaResults), "generator/results.bin", "generator/validation_results.txt");
+    }
+    std::cout << "Validator executed successfully.\n";
+}
 
-    // Run the helper driver to compute derivatives
-    std::cout << "\n[4/6] Running helper driver to compute derivatives...\n";
-    int helperRunStatus = std::system(".\\generator\\adHelper.exe");
-    if (helperRunStatus != 0) {
-        std::cerr << "Execution of helper driver failed with return code: " << helperRunStatus <<"\n";
+// ============================================================================
+// MAIN PIPELINE EXECUTION
+// ============================================================================
+
+int main(int argc, char** argv) {
+    std::cout << "=== AD Validator Pipeline Started ===\n";
+
+    ConfigManager::getInstance().load("generator/configs.txt");
+    ConfigManager cm = ConfigManager::getInstance();
+    
+    std::string current_sequence = cm.getSequence();
+    size_t current_length = current_sequence.length();
+    std::string target_type = cm.getType();
+
+    // Load caching information
+    PipelineCache cache;
+    const std::string cache_file = "generator/.pipeline_cache";
+    cache.load(cache_file);
+
+    // Phase 1: Conditional Compilation
+    if (!handleADDriverCompilation(current_sequence, cache)) return 1;
+    if (!handleHelperDriverCompilation(current_length, cache)) return 2;
+
+    // Update and save cache right away if compilations succeeded
+    cache.last_sequence = current_sequence;
+    cache.last_length = current_length;
+    cache.save(cache_file);
+
+    // Phase 2: Input Generation
+    X_t<double> x_input(cm.getXShape());
+    fillWithRandomValues(x_input);
+    
+    ParameterContainer parameters;
+    try {
+        parameters = generateSeeds(target_type, cm, x_input);
+    } catch (const std::exception &e) {
+        std::cerr << "Seed generation failed: " << e.what() << "\n";
         return 3;
     }
-    std::cout << "      Helper driver executed successfully. Derivatives computed.\n";
 
+    // Phase 3 & 4: Execute drivers
+    if (!runExecutables()) return 4;
 
-    //Run the compiled AD driver executable
-    std::cout << "\n[4.5/6] Running compiled AD driver...\n";
-    int runStatus = std::system(".\\generator\\adDrivers.exe");
-    if (runStatus != 0) {
-        std::cerr << "Execution of compiled AD driver failed!\n";
-        return 3;
-    }
-    std::cout << "      AD driver executed successfully.\n";
-
-
-    // Run the formula driver on the same parameters
-    std::cout << "[5/6] Running formula driver...\n";
-
-    ParameterContainer formulaResults;
+    // Phase 5 & 6: Formula & Validation
     try {
-        if (target_type == "double") {
-            formulaResults = runFormulaDriver<double>(
-                std::get<std::vector<Param<double>>>(parameters)
-            );
-        } else if (target_type == "float") {
-            formulaResults = runFormulaDriver<float>(
-                std::get<std::vector<Param<float>>>(parameters)
-            );
-        } else if (target_type == "int") {
-            formulaResults = runFormulaDriver<int>(
-                std::get<std::vector<Param<int>>>(parameters)
-            );
-        }
-        std::cout << "      Formula driver executed successfully.\n";
+        ParameterContainer formulaResults = runFormula(target_type, parameters);
+        validate(target_type, formulaResults);
     } catch (const std::exception &e) {
-        std::cerr << "Formula driver failed: " << e.what() << "\n";
-        return 4;
-    }
-    
-
-
-    // ----------------------------------------------------
-    // PHASE 5: VALIDATION
-    // ----------------------------------------------------
-    std::cout << "[6/6] Validate results";
-
-    try {
-        if (target_type == "double") {
-            validateParameters<double>(std::get<std::vector<Param<double>>>(formulaResults), 
-                "generator/results.bin", "generator/validation_results.txt"
-            );
-        } else if (target_type == "float") {
-            validateParameters<float>(std::get<std::vector<Param<float>>>(formulaResults), 
-                "generator/results.bin", "generator/validation_results.txt"
-            );
-        } else if (target_type == "int") {
-            validateParameters<int>(std::get<std::vector<Param<int>>>(formulaResults), 
-                "generator/results.bin", "generator/validation_results.txt"
-            );
-        }
-        std::cout << "      Validator executed successfully.\n";
-    } catch (const std::exception &e) {
-        std::cerr << "Validator failed: " << e.what() << "\n";
+        std::cerr << "Pipeline execution/validation failure: " << e.what() << "\n";
         return 5;
     }
+
+    return 0;
 }

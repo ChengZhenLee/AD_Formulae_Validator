@@ -19,7 +19,7 @@ void validateParameters(std::vector<Param<T>> formulaResults,
     for (auto& fp : formulaResults) {
         for (auto& adp : adResults) {
             if (fp.name == adp.name) {
-                T tolerance = std::pow(std::numeric_limits<T>::epsilon(), 1 / std::pow(2, adp.highestOrder));
+                T tolerance = std::pow(std::numeric_limits<T>::epsilon(), 0.5);
                 std::string reportLine = std::format("{}: ", fp.name);
                 reportLine += compareTensors(fp.tensor, adp.tensor, tolerance) + "\n";
                 outFile << reportLine;

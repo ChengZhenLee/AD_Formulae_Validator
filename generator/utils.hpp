@@ -189,7 +189,11 @@ void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& 
             std::reverse(finalCoords.begin(), finalCoords.end());
             finalCoords.push_back(primalIndex);
             finalCoords.insert(finalCoords.end(), rightCoords.begin(), rightCoords.end());
-            x = p.tensor.data[p.tensor.getIndex(finalCoords)];
+            const size_t flatIndex = p.tensor.getIndex(finalCoords);
+            if (flatIndex >= p.tensor.data.size()) {
+                throw std::out_of_range("Seed coordinate exceeds tensor storage size.");
+            }
+            x = p.tensor.data[flatIndex];
             return;
         }
     }
@@ -235,7 +239,11 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
             std::reverse(finalCoords.begin(), finalCoords.end());
             finalCoords.push_back(primalIndex);
             finalCoords.insert(finalCoords.end(), rightCoords.begin(), rightCoords.end());
-            p.tensor.data[p.tensor.getIndex(finalCoords)] = y;
+            const size_t flatIndex = p.tensor.getIndex(finalCoords);
+            if (flatIndex >= p.tensor.data.size()) {
+                throw std::out_of_range("Extract coordinate exceeds tensor storage size.");
+            }
+            p.tensor.data[flatIndex] = y;
             return;
         }
     }
@@ -261,7 +269,7 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
                     leftCoords.push_front(i);
                     extractAD(y.adjoint(i), p, curOrder + 1, sequence, 
                     leftCoords, rightCoords, primalIndex);
-                    leftCoords.pop_back();
+                    leftCoords.pop_front();
                 }
             }
         }
