@@ -8,8 +8,40 @@
 #include "utils.h"
 
 
+// Renders a single monomial (a chain of contracted parameters) as "A * B * C".
 template<typename T>
-std::vector<Param<T>> runFormulaDriver(std::vector<Param<T>> parameters) {
+std::string monomialToString(const Monomial<T>& m) {
+    std::string s;
+    for (size_t i = 0; i < m.parameters.size(); ++i) {
+        if (i > 0) s += " * ";
+        s += m.parameters[i].name;
+    }
+    return s;
+}
+
+// Writes every equation accumulated during the symbolic derivation as
+// "LEFTSIDE = monomial + monomial + ...", one per line, so a peer can inspect
+// exactly which terms the formula driver derived for their sequence.
+template<typename T>
+void saveEquations(const std::deque<Equation<T>>& equations, const std::string& filename) {
+    std::ofstream outFile(filename);
+    if (!outFile.is_open()) {
+        std::cerr << "Unable to open file: " << filename << "\n";
+        return;
+    }
+
+    for (const Equation<T>& e : equations) {
+        outFile << e.leftSide.name << " = ";
+        for (size_t i = 0; i < e.rightSide.size(); ++i) {
+            if (i > 0) outFile << " + ";
+            outFile << monomialToString(e.rightSide[i]);
+        }
+        outFile << "\n";
+    }
+}
+
+template<typename T>
+std::vector<Param<T>> runFormulaDriver(std::vector<Param<T>> parameters, const std::string& equationsPath = "") {
     ConfigManager cm = ConfigManager::getInstance();
     std::string sequence = cm.getSequence();
 
@@ -38,6 +70,10 @@ std::vector<Param<T>> runFormulaDriver(std::vector<Param<T>> parameters) {
     std::deque<Equation<T>> equations = {};
 
     formulaDriver(sequence, equations, derivatives, inputs, outputs);
+
+    if (!equationsPath.empty()) {
+        saveEquations(equations, equationsPath);
+    }
 
     return parameters;
 }

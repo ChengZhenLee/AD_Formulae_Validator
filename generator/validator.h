@@ -6,8 +6,11 @@
 #include <fstream>
 #include <iostream>
 
+// Returns true only if every parameter matched between the AD driver and the
+// formula driver. The full per-parameter breakdown is still written to
+// outputFilename regardless, for debugging a false result.
 template<typename T>
-void validateParameters(std::vector<Param<T>> formulaResults, 
+bool validateParameters(std::vector<Param<T>> formulaResults,
     std::string inputFilename, std::string outputFilename) {
     std::vector<Param<T>> adResults = readParameters<T>(inputFilename);
     std::ofstream outFile(outputFilename);
@@ -15,17 +18,19 @@ void validateParameters(std::vector<Param<T>> formulaResults,
     if (!outFile.is_open()) {
         std::cerr << "Unable to open file: " << outputFilename << "\n";
     }
-    
+
+    bool allValid = true;
     for (auto& fp : formulaResults) {
         for (auto& adp : adResults) {
             if (fp.name == adp.name) {
                 T tolerance = std::pow(std::numeric_limits<T>::epsilon(), 0.5);
-                std::string reportLine = std::format("{}: ", fp.name);
-                reportLine += compareTensors(fp.tensor, adp.tensor, tolerance) + "\n";
-                outFile << reportLine;
+                std::string status = compareTensors(fp.tensor, adp.tensor, tolerance);
+                if (status != "valid") allValid = false;
+                outFile << std::format("{}: {}\n", fp.name, status);
             }
         }
     }
+    return allValid;
 }
 
 

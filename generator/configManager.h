@@ -107,6 +107,17 @@ class ConfigManager {
             std::reverse(sequence.begin(), sequence.end());
             return sequence;
         }
+
+        // Returns the sequence exactly as configured (no reversal). Only for
+        // display/logging, where showing the user's own typed string matters.
+        std::string getRawSequence() {
+            return config["sequence"];
+        }
+
+        // Overrides a config value at runtime, e.g. a --sequence CLI argument.
+        void set(const std::string& key, const std::string& value) {
+            config[key] = value;
+        }
 };
 
 #endif

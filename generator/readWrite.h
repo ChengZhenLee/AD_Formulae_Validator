@@ -24,7 +24,6 @@ void writeParameters(const std::vector<Param<T>> &parameters, const std::string 
     outFile.write(reinterpret_cast<const char*>(binary_data.data()), binary_data.size());
 
     outFile.close();
-    std::cout << "Successfully saved to " << filename << "\n";
 }
 
 
