@@ -64,10 +64,10 @@ void generateADDrivers(std::string filename) {
     for (int i = 1; i <= order; i++) {
         char mode = sequence[i - 1];
         if (mode == 't') {
-            outFile << generateTangent(order - i + 1, sequence, XADNested, YADNested); 
+            outFile << generateTangent(i, sequence, XADNested, YADNested);
         }
         else if (mode == 'a') {
-            outFile << generateAdjoint(order - i + 1, sequence, XADNested, YADNested);
+            outFile << generateAdjoint(i, sequence, XADNested, YADNested);
         }
         outFile << "\n";
     }
@@ -207,7 +207,6 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
     std::string functionName = getCurrentLayerFunctionName(curOrder);
     std::string subFunctionName = getCurrentLayerFunctionName(curOrder - 1);
     std::string curADType = getCurrentLayerADType(curOrder, sequence);
-    size_t outerAdjointOrder = sequence.length() - sequence.find('a');
 
     // Function signature
     result += "template <typename T>\n";
@@ -230,7 +229,20 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
 
     // Interpret the tape
     result += std::format("\t{}::tape::interpret();\n", curADType);
-    
+
+    // Interpreting this tape performs arithmetic on its own value type T; if T is
+    // (or wraps) an inner adjoint type, that arithmetic records new entries onto the
+    // inner tape that its own (already-run) init_adjoints() never sized for. Cascade
+    // a fresh init_adjoints()+interpret() through every earlier adjoint order, outer
+    // to inner, so those new entries get accounted for before we read anything back.
+    for (int innerOrder = (int)curOrder - 1; innerOrder >= 1; --innerOrder) {
+        if (sequence[innerOrder - 1] == 'a') {
+            std::string innerADType = getCurrentLayerADType(innerOrder, sequence);
+            result += std::format("\t{}::tape::init_adjoints();\n", innerADType);
+            result += std::format("\t{}::tape::interpret();\n", innerADType);
+        }
+    }
+
     // Extract derivatives
     result += std::format("\textractADForOrder(x, y, parameters, {}, \"{}\");\n",
         curOrder, sequence);
@@ -423,7 +435,7 @@ std::string generateYNestedADType(std::string sequence) {
 
 // Determine the current layer's AD type
 std::string getCurrentLayerADType(size_t curOrder, std::string sequence) {
-    std::string subsequence = sequence.substr(0, sequence.length() - curOrder + 1);
+    std::string subsequence = sequence.substr(0, curOrder);
     return generateNestedADType(subsequence);
 }
 

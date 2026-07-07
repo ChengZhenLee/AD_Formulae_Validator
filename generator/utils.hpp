@@ -198,9 +198,10 @@ void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& 
         }
     }
 
-    char curType = sequence[sequence.length() - curOrder];
-    if (p.isActive(curOrder)) {
-        size_t curShape = p.getShapeAt(curOrder);
+    size_t orderLabel = sequence.length() - curOrder + 1;
+    char curType = sequence[orderLabel - 1];
+    if (p.isActive(orderLabel)) {
+        size_t curShape = p.getShapeAt(orderLabel);
         if (curType == 't') {
             // COMPILER GUARD: Only compile this loop if x actually has a .tangent() method
             if constexpr (requires { x.tangent(0); }) {
@@ -248,9 +249,10 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
         }
     }
 
-    char curType = sequence[sequence.length() - curOrder];
-    if (p.isActive(curOrder)) {
-        size_t curShape = p.getShapeAt(curOrder);
+    size_t orderLabel = sequence.length() - curOrder + 1;
+    char curType = sequence[orderLabel - 1];
+    if (p.isActive(orderLabel)) {
+        size_t curShape = p.getShapeAt(orderLabel);
         if (curType == 't') {
             // COMPILER GUARD: Only compile this loop if y actually has a .tangent() method
             if constexpr(requires { y.tangent(0); }) {
@@ -284,12 +286,23 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
 template<typename ADNestedX, typename ADNestedY, typename T>
 void seedADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     for (Param<T>& p : parameters) {
-        if (p.highestOrder == targetOrder && p.isActive(targetOrder) && p.role == ParamRole::Input) {
+        // A param with an 'a' order must be seeded within that order's own tape
+        // lifecycle (after f() runs), not at an outer tangent order (before f() runs).
+        // Among multiple active adjoint orders (each with its own separate tape),
+        // it must wait for the outermost one, since that's the last tape to exist.
+        bool hasLaterAdjoint = std::any_of(p.activeOrders.begin(), p.activeOrders.end(),
+            [&](int o) { return sequence[o - 1] == 'a' && (size_t)o > targetOrder; });
+        bool hasAnyAdjoint = std::any_of(p.activeOrders.begin(), p.activeOrders.end(),
+            [&](int o) { return sequence[o - 1] == 'a'; });
+        bool ownedHere = sequence[targetOrder - 1] == 'a'
+            ? p.isActive(targetOrder) && !hasLaterAdjoint
+            : p.highestOrder == targetOrder && !hasAnyAdjoint;
+        if (ownedHere && p.role == ParamRole::Input) {
             if (p.name[0] == 'X') {
                 for (size_t i = 0; i < x.size(); i++) {
                     std::deque<size_t> leftCoords = {};
                     std::deque<size_t> rightCoords = {};
-                    seedAD(x[i], p, 1, sequence, 
+                    seedAD(x[i], p, 1, sequence,
                     leftCoords, rightCoords, i);
                 }
             }
@@ -309,7 +322,14 @@ void seedADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameter
 template<typename ADNestedX, typename ADNestedY, typename T>
 void extractADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     for (Param<T>& p : parameters) {
-        if (p.highestOrder == targetOrder && p.isActive(targetOrder) && p.role == ParamRole::Output) {
+        bool hasLaterAdjoint = std::any_of(p.activeOrders.begin(), p.activeOrders.end(),
+            [&](int o) { return sequence[o - 1] == 'a' && (size_t)o > targetOrder; });
+        bool hasAnyAdjoint = std::any_of(p.activeOrders.begin(), p.activeOrders.end(),
+            [&](int o) { return sequence[o - 1] == 'a'; });
+        bool ownedHere = sequence[targetOrder - 1] == 'a'
+            ? p.isActive(targetOrder) && !hasLaterAdjoint
+            : p.highestOrder == targetOrder && !hasAnyAdjoint;
+        if (ownedHere && p.role == ParamRole::Output) {
             if (p.name[0] == 'X') {
                 for (size_t i = 0; i < x.size(); i++) {
                     std::deque<size_t> leftCoords = {};

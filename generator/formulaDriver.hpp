@@ -123,20 +123,20 @@ void tangentMode(
                             collectedParams.push_back(derivedPrimal);
                         }
                     } else {
-                        if (m.parameters[i].name.front() == 'F') continue;
+                        if (m.parameters[j].name == "X") continue;
                         collectedParams.push_back(m.parameters[j]);
                     }
                 }
 
                 if (collectedParams.empty()) continue;
 
+                std::deque<Param<T>> paramChainCopy = collectedParams;
+
                 Tensor<T> finalMonomialTensor = evaluateMonomialSequence(collectedParams, targetParam.indexNames);
-                
+
                 equationSum = equationSum + finalMonomialTensor;
-                
-                std::deque<Param<T>> paramChain;
-                for (const auto& cp : collectedParams) paramChain.push_back(cp);
-                newEquation.rightSide.push_back(Monomial<T>(paramChain));
+
+                newEquation.rightSide.push_back(Monomial<T>(paramChainCopy));
             }
         }
         
@@ -224,7 +224,7 @@ void adjointMode(
                     Tensor<T> finalMonomialTensor = evaluateMonomialSequence(collectedParams, targetParam.indexNames);
 
                     equationSum = equationSum + finalMonomialTensor;
-                    
+
                     // Reassemble param chains for symbolic registration updates
                     std::deque<Param<T>> paramChain;
                     for (const auto& cp : collectedParams) paramChain.push_back(cp);
@@ -267,9 +267,9 @@ void adjointMode(
                     std::deque<Param<T>> paramChainCopy = collectedParams;
 
                     Tensor<T> finalMonomialTensor = evaluateMonomialSequence(collectedParams, targetParam.indexNames);
-                    
+
                     equationSum = equationSum + finalMonomialTensor;
-                    
+
                     std::deque<Param<T>> paramChain;
                     for (const auto& cp : collectedParams) paramChain.push_back(cp);
                     newEquation.rightSide.push_back(Monomial<T>(paramChainCopy));

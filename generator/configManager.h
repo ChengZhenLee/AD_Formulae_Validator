@@ -98,9 +98,14 @@ class ConfigManager {
             return config["f"];
         }
 
-        // Returns the AD sequence
+        // Returns the AD sequence, reversed so that order label 1 corresponds to
+        // the LAST character of the configured string, matching "X over Y" AD
+        // terminology: e.g. "ta" ("tangent over adjoint") means adjoint is order 1
+        // (innermost, first-applied) and tangent is order 2 (outer, wraps it).
         std::string getSequence() {
-            return config["sequence"];
+            std::string sequence = config["sequence"];
+            std::reverse(sequence.begin(), sequence.end());
+            return sequence;
         }
 };
 

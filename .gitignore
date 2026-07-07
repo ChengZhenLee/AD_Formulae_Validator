@@ -1,4 +1,5 @@
 .cache
 build/
 .github
-validation_results.txt
+.claude
+.vscode

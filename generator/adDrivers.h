@@ -11,10 +11,10 @@ template <typename T>
 std::vector<Param<T>> runADDrivers(X_t<T>& x); 
 
 template <typename T>
-void AD_F_1(X_t<A_t<A_t<double,2>,2>>& x, Y_t<A_t<A_t<double,2>,2>>& y, std::vector<Param<T>> parameters); 
+void AD_F_1(X_t<T_t<A_t<double,2>,3>>& x, Y_t<T_t<A_t<double,2>,3>>& y, std::vector<Param<T>> parameters); 
 
 template <typename T>
-void AD_F_2(X_t<A_t<A_t<double,2>,2>>& x, Y_t<A_t<A_t<double,2>,2>>& y, std::vector<Param<T>> parameters); 
+void AD_F_2(X_t<T_t<A_t<double,2>,3>>& x, Y_t<T_t<A_t<double,2>,3>>& y, std::vector<Param<T>> parameters); 
 
 
 #endif
