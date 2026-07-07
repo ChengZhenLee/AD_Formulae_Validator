@@ -361,6 +361,20 @@ int main(int argc, char** argv) {
     g_resourceDir = getExecutableDir();
     g_genDir = g_resourceDir + "/generator";
 
+    // The generated AD/helper driver programs are compiled with relative
+    // paths like "generator/parameters.bin" baked in (see generator.cpp),
+    // resolved against whatever directory they're launched from. Since they
+    // run as child processes of this one and inherit its working directory,
+    // pin that directory to the resource folder now so the drivers find
+    // their files regardless of where the user invoked this executable from.
+    std::error_code chdirErr;
+    fs::current_path(g_resourceDir, chdirErr);
+    if (chdirErr) {
+        std::cerr << "Error: could not switch to resource directory \"" << g_resourceDir
+                   << "\": " << chdirErr.message() << "\n";
+        return 1;
+    }
+
     std::string gppCheckCmd = std::string("g++ --version > ") + NULL_DEVICE + " 2>&1";
     if (std::system(gppCheckCmd.c_str()) != 0) {
         std::cerr << "Error: g++ was not found on PATH.\n"
