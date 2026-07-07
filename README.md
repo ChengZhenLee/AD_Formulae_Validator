@@ -9,7 +9,7 @@ an AD driver for the differentiation mode you ask for, runs it, independently
 re-derives the expected derivatives symbolically, compares the two, and
 prints a single `VALID` / `INVALID` verdict.
 
-The default primal function is the Lighthouse function, and an AD sequence of "ta, which is "tangent-over-adjoint" mode.
+The default primal function is the Lighthouse function, and the default AD sequence is "ta", which is "tangent-over-adjoint" mode.
 
 ## Requirements
 
