@@ -13,6 +13,14 @@ template<typename T>
 std::string monomialToString(const Monomial<T>& m) {
     std::string s;
     for (size_t i = 0; i < m.parameters.size(); ++i) {
+        if (m.parameters[i].name == "X") {
+            s += "(X)";
+            continue;
+        }
+        if (m.parameters[i].name == "F") {
+            s += "f";
+            continue;
+        }
         if (i > 0) s += " * ";
         s += m.parameters[i].name;
     }
@@ -31,7 +39,9 @@ void saveEquations(const std::deque<Equation<T>>& equations, const std::string& 
     }
 
     for (const Equation<T>& e : equations) {
-        outFile << e.leftSide.name << " = ";
+        std::string leftSide = e.leftSide.name;
+        if (leftSide == "Y") leftSide = "y";
+        outFile << leftSide << " = ";
         for (size_t i = 0; i < e.rightSide.size(); ++i) {
             if (i > 0) outFile << " + ";
             outFile << monomialToString(e.rightSide[i]);
