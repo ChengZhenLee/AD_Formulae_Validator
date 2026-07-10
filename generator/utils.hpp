@@ -3,7 +3,6 @@
 
 #include "structures.h"
 #include "configManager.h"
-#include "generator.h"
 #include "readWrite.h"
 #include <algorithm>
 #include <cmath>
@@ -15,6 +14,23 @@
 #include <type_traits>
 #include "user_function.h"
 
+// ============================================================================
+// This file has two independent jobs:
+//   1. Build the *parameter tree*: one Param per input/output per
+//      differentiation order, with the tensor shapes and Einstein index
+//      names the symbolic formula driver needs (generateParameters and the
+//      seed generators below it).
+//   2. Walk the *nested AD type* the generated driver builds for a given
+//      sequence (X_t<...>/A_t<...> composed per generator.cpp) and copy
+//      data in and out of it, one differentiation order/layer at a time
+//      (seedAD/extractAD and friends). A nested AD object is unwrapped one
+//      layer per recursive call — x.tangent(i)/x.adjoint(i) to descend into
+//      an order that's active for the Param being seeded, x.value() to skip
+//      through an order that isn't — until the innermost primal scalar is
+//      reached, at which point the accumulated per-order coordinates are
+//      assembled into one flat Tensor index.
+// ============================================================================
+
 // Nested AD types must have a .value() member
 template<typename T, typename = void>
 struct has_value_member : std::false_type {};
@@ -25,7 +41,19 @@ struct has_value_member<T, std::void_t<decltype(std::declval<T>().value())>> : s
 template<typename T>
 inline constexpr bool isADNestedType = has_value_member<T>::value;
 
-// Generate the parameters needed for a given order and sequence of AD
+// Recursively builds one Param per input/output per differentiation order
+// implied by `sequence` (order-1-is-innermost numbering, see
+// ConfigManager::getSequence). Base case (empty sequence) is the bare
+// primal X ("i" index) and Y ("j" index). Each recursive step takes every
+// Param built for the shorter (order-1) sequence and derives one more from
+// it for the current trailing order: a tangent order appends a new "v_k"
+// axis of width V to the *right* (seed lives with the input, so this stays
+// an Input-role Param); an adjoint order prepends a new "u_k" axis of
+// width U to the *left* and flips Input<->Output role (an adjoint's seed
+// is supplied on the *output* side and its result read back on the
+// *input* side, standard reverse-mode convention). Names accumulate
+// "_<order>" suffixes as this recurses, which is what Param's constructor
+// parses back out into activeOrders/highestOrder.
 template <typename T>
 std::vector<Param<T>> generateParameters(std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
@@ -84,7 +112,13 @@ std::vector<Param<T>> generateParameters(std::string sequence) {
     return result;
 }
 
-// Initialize the seed of every parameter with random data
+// Builds the full parameter tree for `sequence` and fills it with the
+// random data both drivers will run on: the given primal `x` values go
+// into the "X" Param, and every other Param whose name starts with "X"
+// (i.e. every tangent/adjoint seed derived from X) gets independent random
+// values in the same range as `x`. Written to generator/parameters.bin and
+// read back by both the generated AD driver and the formula driver, so
+// both operate on identical seed data.
 template<typename T>
 std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x) {
     std::vector<Param<T>> parameters = generateParameters<T>(sequence);
@@ -119,8 +153,20 @@ std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x)
 }
 
 
-// TODO: seed X_1, X_2... with identity matrices
-// Change the name of the appropriate output tensors to F_1_2...
+// Builds the seeds for the *helper* driver (generator/adHelper.cpp), which
+// always runs in pure tangent mode regardless of the requested sequence.
+// Directional (tangent) derivatives of f are only equal to a true partial
+// derivative when the seed direction is a standard basis vector, so X_1,
+// X_2, ... here are seeded with identity matrices instead of random data:
+// running f() forward through nested-tangent types with an identity-seeded
+// direction extracts the literal Jacobian (and higher tangent-only
+// derivative tensors) of f at the random primal point used elsewhere. The
+// resulting Y_k outputs are renamed to F_k so runFormulaDriver/getDerivatives
+// can find them as the ground-truth values for the symbolic "F" (dF/dX)
+// placeholders that formulaDriver.hpp's monomials reference — i.e. these
+// are the elementary partials the chain rule composes; validating the
+// requested sequence checks that composition, not these values themselves
+// (they come from ordinary, well-established forward-mode AD).
 template<typename T>
 std::vector<Param<T>> generateDerivativeSeeds(std::string sequence, const X_t<T>& x) {
     size_t order = sequence.length();
@@ -163,8 +209,12 @@ std::vector<Param<T>> generateDerivativeSeeds(std::string sequence, const X_t<T>
 }
 
 
-// Get the derivatives from generator/derivatives.bin
-// the derivatives names all start with F
+// Reads back the elementary partial-derivative tensors (F, F_1, F_2, ...)
+// computed by the helper driver into generator/derivatives.bin (see
+// generateDerivativeSeeds), filtering to just the "F"-named entries.
+// `sequence`/`x0`/`h` are unused — kept for interface symmetry with the
+// other seed generators; the values were already computed by the time this
+// runs, this just loads them.
 template<typename T>
 std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>& x0, T h) {
     // Read back the results and return the computed derivative parameter values.
@@ -179,9 +229,23 @@ std::vector<Param<T>> getDerivatives(std::string sequence, const std::vector<T>&
     return derivatives;
 }
 
-// Seed the nested AD type
+// Copies data from Param `p`'s tensor into the nested AD object `x`, one
+// wrapper layer per recursive call. `x` starts as the outermost/full nested
+// type; `curOrder` is a recursion depth counter (1 at the outermost call),
+// and `orderLabel` below converts it to the actual differentiation order
+// number that outer layer corresponds to (order-1-is-innermost numbering,
+// so orderLabel counts *down* from sequence.length() as curOrder — and
+// recursion depth — increases). At each layer: if `p` doesn't carry data
+// for this order (`!p.isActive`), just unwrap through `.value()` and
+// recurse with the same coordinates; if it does, walk every seed index at
+// this order via `.tangent(i)`/`.adjoint(i)`, recording each `i` onto
+// `rightCoords` (tangent axes were appended on the right by
+// generateParameters) or `leftCoords` (adjoint axes were prepended).
+// Recursion bottoms out once every layer has been unwound to the bare
+// primal type, at which point `leftCoords`+`primalIndex`+`rightCoords` is
+// the full multi-index into `p.tensor`, and that scalar is copied into `x`.
 template<typename ADNested, typename T>
-void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence, 
+void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& sequence,
     std::deque<size_t>& leftCoords, std::deque<size_t>& rightCoords, size_t& primalIndex) {
     if constexpr(!isADNestedType<ADNested>) {
         if (curOrder > sequence.length()) {
@@ -230,9 +294,16 @@ void seedAD(ADNested& x, const Param<T>& p, size_t curOrder, const std::string& 
     }
 }
 
-// Extract the nested AD type
+// The read-back counterpart of seedAD: same recursive walk down the nested
+// AD object `y`, but copies each reached primal scalar out into `p.tensor`
+// instead of in. Coordinates must land in the same per-axis order the
+// tensor's shape/indexNames were built in by generateParameters, which is
+// why leftCoords is accumulated with push_front/pop_front here versus
+// push_back/pop_back in seedAD — the two walk the same recursion shape but
+// feed a differently-shaped (mirror-image) coordinate list into the shared
+// getIndex() lookup.
 template<typename ADNested, typename T>
-void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence, 
+void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& sequence,
     std::deque<size_t>& leftCoords, std::deque<size_t>& rightCoords, size_t& primalIndex) {
     if constexpr(!isADNestedType<ADNested>) {
         if (curOrder > sequence.length()) {
@@ -282,14 +353,24 @@ void extractAD(ADNested& y, Param<T>& p, size_t curOrder, const std::string& seq
     }
 }
 
-// Seeds all parameters for a specific order/layer
+// Seeds every Param "owned" by `targetOrder`'s generated driver layer (see
+// generateTangent/generateAdjoint in generator.cpp, which call this once
+// per layer with their own order number). A Param can only be seeded when
+// its data is actually needed at that point in the call stack: an adjoint
+// order's seed is the incoming sensitivity, only meaningful once that
+// order's tape exists (after f() has run for that layer) — and if a Param
+// is active at multiple adjoint orders, it must wait for the *outermost*
+// one, since inner adjoint tapes no longer exist by the time the outer
+// tape is being seeded. `ownedHere` encodes exactly that: for an adjoint
+// target order, this Param belongs here iff it's active at this order and
+// has no later (outer) adjoint order still to come; for a tangent target
+// order, it belongs here iff this is literally its highest order and it
+// has no adjoint order at all (tangent seeds are needed up front, before
+// f() runs, so they're owned by the single non-adjoint layer that created
+// them).
 template<typename ADNestedX, typename ADNestedY, typename T>
 void seedADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     for (Param<T>& p : parameters) {
-        // A param with an 'a' order must be seeded within that order's own tape
-        // lifecycle (after f() runs), not at an outer tangent order (before f() runs).
-        // Among multiple active adjoint orders (each with its own separate tape),
-        // it must wait for the outermost one, since that's the last tape to exist.
         bool hasLaterAdjoint = std::any_of(p.activeOrders.begin(), p.activeOrders.end(),
             [&](int o) { return sequence[o - 1] == 'a' && (size_t)o > targetOrder; });
         bool hasAnyAdjoint = std::any_of(p.activeOrders.begin(), p.activeOrders.end(),
@@ -318,7 +399,9 @@ void seedADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameter
     }
 }
 
-// Extracts all values for a specific order/layer
+// Read-back counterpart of seedADForOrder: same "ownedHere" rule, just
+// applied to Output-role Params (a layer's results) instead of Input-role
+// ones (a layer's seeds).
 template<typename ADNestedX, typename ADNestedY, typename T>
 void extractADForOrder(ADNestedX& x, ADNestedY& y, std::vector<Param<T>>& parameters, size_t targetOrder, const std::string& sequence) {
     for (Param<T>& p : parameters) {
@@ -408,20 +491,6 @@ Param<T>& findParamByName(const std::string& targetName, std::deque<Param<T>>& p
             return p;
         }
     }
-    // === TEMPORARY DEBUG DUMP ===
-    std::cout << "\n========================================\n";
-    std::cout << "   DUMPING ALL PARAMETERS FROM FILE     \n";
-    std::cout << "========================================\n";
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        std::cout << "Index [" << i << "] "
-                  << "Name: " << parameters[i].name << " | "
-                  << "Role: " << (parameters[i].role == ParamRole::Input ? "Input" : "Output") << " | "
-                  << "Shape: [";
-        for (size_t s : parameters[i].tensor.shape) std::cout << s << " ";
-        std::cout << "]\n";
-    }
-    std::cout << "========================================\n\n";
-    // === END DEBUG DUMP ===
     throw std::runtime_error(std::format("Parameter not found: {}", targetName));
 }
 
@@ -432,20 +501,6 @@ Param<T>& findParamByName(const std::string& targetName, const std::deque<Param<
             return p;
         }
     }
-    // === TEMPORARY DEBUG DUMP ===
-    std::cout << "\n========================================\n";
-    std::cout << "   DUMPING ALL PARAMETERS FROM FILE     \n";
-    std::cout << "========================================\n";
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        std::cout << "Index [" << i << "] "
-                  << "Name: " << parameters[i].name << " | "
-                  << "Role: " << (parameters[i].role == ParamRole::Input ? "Input" : "Output") << " | "
-                  << "Shape: [";
-        for (size_t s : parameters[i].tensor.shape) std::cout << s << " ";
-        std::cout << "]\n";
-    }
-    std::cout << "========================================\n\n";
-    // === END DEBUG DUMP ===
     throw std::runtime_error(std::format("Parameter not found: {}", targetName));
 }
 

@@ -7,6 +7,13 @@
 #include <nlohmann/json.hpp>
 #include "structures.h"
 
+// The generated AD driver, the helper driver, and this validator are three
+// separate compiled programs (main.cpp launches the other two as child
+// processes), so parameters can't just be passed in memory — they're
+// round-tripped through generator/*.bin files using MessagePack (a compact
+// binary JSON encoding), via the to_json/from_json Param generates through
+// NLOHMANN_DEFINE_TYPE_INTRUSIVE in structures.h.
+
 
 // Write parameters as binary into an output file
 template<typename T>

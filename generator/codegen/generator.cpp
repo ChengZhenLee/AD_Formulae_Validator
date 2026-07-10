@@ -4,6 +4,34 @@
 #include "configManager.h"
 #include <format>
 
+// ============================================================================
+// AD DRIVER CODE GENERATION
+//
+// This file doesn't run any AD itself — it emits C++ source (as strings,
+// written straight to generator/adDrivers.cpp / adHelper.cpp) that, when
+// compiled, does. For a sequence like "at" it generates one function per
+// differentiation layer, each nested inside the last:
+//
+//   AD_F_1(x, y, params)  { seed order 1; call f(x, y);        extract order 1; }
+//   AD_F_2(x, y, params)  { seed order 2; call AD_F_1(...);    extract order 2; }
+//   ...
+//   runADDrivers(params)  { seed x/y as the fully-nested AD type; call the
+//                            outermost AD_F_<order>; return the results. }
+//
+// x/y's type is the nested AD type matching the sequence (T_t<...>/A_t<...>
+// composed by generateNestedADType), so each layer's seed/extract only
+// needs to touch the one order it owns (see seedADForOrder/extractADForOrder
+// in utils.hpp) — layers below just see a plain nested AD object and know
+// nothing about which order they're running inside.
+//
+// adDrivers.cpp is generated fresh for the exact requested sequence.
+// adHelper.cpp is always generated in pure-tangent mode (same length, all
+// 't') regardless of the sequence, because it computes the elementary
+// partial derivatives (F, F_1, F_2, ...) the formula driver treats as
+// ground truth — see generateDerivativeSeeds in utils.hpp for why tangent
+// mode with identity seeding gives exact partials.
+// ============================================================================
+
 
 // Generate the header file
 void generateADHeader(std::string filename) {
@@ -149,7 +177,6 @@ std::string generateInterface(std::string sequence, std::string XADNested, std::
     result += std::format("\t{}<{}>(x, y, parameters);\n", functionName, type);
 
     // Reset all adjoint tapes
-    result += "\t// Clean up all recorded tapes before returning\n";
     result += generateResetTapeString(sequence); 
     result += "\n";
 
@@ -230,11 +257,6 @@ std::string generateAdjoint(size_t curOrder, std::string sequence, std::string X
     // Interpret the tape
     result += std::format("\t{}::tape::interpret();\n", curADType);
 
-    // Interpreting this tape performs arithmetic on its own value type T; if T is
-    // (or wraps) an inner adjoint type, that arithmetic records new entries onto the
-    // inner tape that its own (already-run) init_adjoints() never sized for. Cascade
-    // a fresh init_adjoints()+interpret() through every earlier adjoint order, outer
-    // to inner, so those new entries get accounted for before we read anything back.
     for (int innerOrder = (int)curOrder - 1; innerOrder >= 1; --innerOrder) {
         if (sequence[innerOrder - 1] == 'a') {
             std::string innerADType = getCurrentLayerADType(innerOrder, sequence);
@@ -404,7 +426,13 @@ std::string generateHelperMain(std::string sequence) {
 // Helper Functions
 // ----------------
 
-// Generate the complex nested AD types
+// Builds the nested AD type string for `sequence` by wrapping the base
+// numeric type once per character, left to right: sequence[0] (order 1,
+// innermost/first-applied) wraps the bare type first, sequence.back()
+// (outermost/last-applied) wraps last and ends up as the outermost type —
+// e.g. sequence "at" (adjoint order 1, tangent order 2) yields
+// "T_t<A_t<double,U>,V>": tangent is the outer layer, matching "tangent
+// over adjoint" from the README.
 std::string generateNestedADType(std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     std::string V = std::to_string(cm.getTangentShape());
@@ -446,7 +474,11 @@ std::string getCurrentLayerFunctionName(size_t curOrder) {
     return std::format("AD_F_{}", curOrder);
 }
 
-// Generate the string required to register an input for all adjoint layers
+// Generates the loop that calls .register_input() on x[i] for every
+// adjoint layer's tape before any driver function runs. Each adjoint order
+// needs its own tape entry for x, reached by drilling in with the right
+// number of .value() calls to unwrap any tangent layers between the
+// outermost object and that adjoint layer's type.
 std::string generateRegisterInputString(std::string sequence) {
     ConfigManager cm = ConfigManager::getInstance();
     size_t xShape = cm.getXShape();
@@ -466,7 +498,10 @@ std::string generateRegisterInputString(std::string sequence) {
     return result;
 }
 
-// Generate the string required to reset all tapes in a (highest level) adjoint mode driver
+// Generates one tape::reset() call per adjoint order in `sequence`, emitted
+// after the outermost driver function returns (see generateInterface) so
+// every adjoint tape's recorded operations are released once its results
+// have been extracted.
 std::string generateResetTapeString(std::string sequence) {
     std::string result;
     std::string curSubstring;
@@ -480,7 +515,9 @@ std::string generateResetTapeString(std::string sequence) {
 }
 
 
-// Generate the string required to initialize the adjoints of all tapes in a (highest level) adjoint mode driver
+// Generates one tape::init_adjoints() call per adjoint order, outermost
+// first. Currently unused: generateAdjoint() inlines the equivalent
+// (order-dependent) cascade itself rather than calling this.
 std::string generateInitAdjointsString(std::string sequence) {
     std::string result;
     std::string curSubstring;

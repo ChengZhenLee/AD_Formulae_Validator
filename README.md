@@ -11,6 +11,41 @@ prints a single `VALID` / `INVALID` verdict.
 
 The default primal function is the Lighthouse function, and the default AD sequence is "ta", which is "tangent-over-adjoint" mode.
 
+## How it works
+
+The validator computes the same higher-order derivatives two ways, from two
+independent code paths, and checks that they agree within tolerance:
+
+1. **Numeric AD driver** (`generator/codegen/generator.cpp` → generated
+   `generator/adDrivers.cpp`). For a requested sequence such as `ta`, the
+   primal type `T` is wrapped in nested AD types from `include/ad/ad.h`
+   (`ad::tangent_t<T,V>` for each `t`, `ad::adjoint_t<T,U>` for each `a`,
+   composed outermost-to-innermost). `f()` is then run *once*, unmodified,
+   through this nested type. Each layer seeds its own tangent directions or
+   records/interprets its own adjoint tape, so the nested type mechanically
+   produces every derivative of the requested order — this is standard
+   operator-overloading AD, and it is the thing being validated.
+2. **Symbolic formula driver** (`generator/symbolic/formulaDriver.hpp`). This is a
+   second, independent implementation that never touches the AD library. It
+   starts from the base equation `y = f(x)` and applies the multivariate
+   chain/product rule order-by-order: a `t` step differentiates every term
+   of the current equation set with respect to the next tangent direction
+   (sum rule over monomials, product rule within a monomial); an `a` step
+   propagates adjoint sensitivities backward through the same equation set.
+   Each application is expressed as a **tensor contraction over named
+   indices** (`i` = input, `j` = output, `v_k`/`u_k` = the tangent/adjoint
+   seed index introduced at order `k`), i.e. plain Einstein summation, so
+   the result only depends on the shapes and the chain rule — not on any AD
+   machinery. `generator/symbolic/formulaDriver.hpp` documents this in detail.
+
+Both drivers are run on the *same* random seed values (`generator/parameters.bin`,
+`generator/derivatives_seeds.bin`), and `generator/symbolic/validator.h` compares
+their output tensors element-by-element. Because the two derivations share
+no code, agreement is strong evidence that the operator-overloading AD
+library computes the derivative the chain rule says it should for the given
+formula and sequence — which is the property a hand-written AD formula
+needs for a paper to rely on it.
+
 ## Requirements
 
 - A C++20-capable `g++` on `PATH` (MinGW-w64 / w64devkit on Windows, GCC or
@@ -84,11 +119,16 @@ it as the second, outer derivative.
 Sequences can be any length and any mix of `t`/`a`, e.g. `a`, `t`, `at`,
 `ta`, `aa`, `tt`, `tat`, `aat`, etc.
 
+Passing `--sequence` also **persists**: it rewrites the `sequence` line in
+`generator/configs.txt`, so it becomes the new default for subsequent runs
+that omit `--sequence`, instead of reverting to whatever was configured
+before. Every other line in `configs.txt` is left untouched.
+
 ## Command-line options
 
 | Option | Description |
 |---|---|
-| `--sequence=<mode>` | Overrides `sequence` from `generator/configs.txt` for this run. |
+| `--sequence=<mode>` | Overrides `sequence` from `generator/configs.txt` for this run, and persists as the new default in that file. |
 | `--verbose`, `-v` | Show pipeline stage-by-stage progress instead of the short one-line status messages. |
 | `--help`, `-h` | Show usage and exit. |
 
@@ -121,15 +161,21 @@ All written under the `generator/` folder next to the executable:
 
 Don't hand someone the whole `build/` directory — it's full of CMake/Ninja
 build machinery they don't need. Building `ADValidator` also assembles a
-trimmed `build/dist/` folder containing only what's needed to run it
-standalone:
+`build/dist/` folder alongside it:
 
 ```
 dist/
   ADValidator.exe        (or ADValidator on Linux/macOS)
-  generator/              — headers + configs.txt needed at runtime
+  generator/              — full generator/ source tree (see Project layout)
   include/                — the AD library, JSON, and Eigen headers it depends on
 ```
+
+`generator/` is copied wholesale, so a peer reviewing `dist/` sees the same
+source as the repository, including `generator/codegen/` and
+`generator/symbolic/` — only `ADValidator.exe` needs any of it, and only the
+flat files (`structures.h`, `utils.h`/`.hpp`, `readWrite.h`,
+`configManager.h`, `user_function.h`, `configs.txt`) at runtime, when it
+compiles the AD/helper drivers it generates.
 
 Zip up `dist/` and send it as-is. The executable locates `generator/` and
 `include/` relative to its own location, not the current working directory,
@@ -140,20 +186,46 @@ executable.
 
 ## Project layout
 
-- `main.cpp` — CLI entry point and pipeline orchestration (compile, seed,
-  run, validate).
-- `generator/generator.cpp` / `generator.h` — generates the AD driver and
-  helper driver source code for a given sequence.
-- `generator/formulaDriver.hpp` — independently re-derives the expected
-  derivatives symbolically, for cross-validation against the numeric AD
-  driver.
+- `main.cpp` — CLI entry point: argument parsing plus calling the six
+  pipeline stages (compile AD driver, compile helper driver, seed, run,
+  formula, validate) in order. The stages themselves and all terminal
+  output live in `cli/`, not here.
+- `cli/pipeline.h` / `pipeline.cpp` — the pipeline stage implementations,
+  plus the executable-location/build-caching plumbing they share.
+- `cli/console.h` / `console.cpp` — all terminal output: colored
+  stage/verdict printing (auto-disabled when not writing to a terminal, or
+  when `NO_COLOR` is set), `--help` text, and compiler-error reporting.
+- `cli/globals.h` — the small set of process-wide state (verbose flag,
+  resource/generator directory paths) shared between `main.cpp` and `cli/`.
+- `generator/codegen/generator.cpp` / `generator.h` — generates the AD
+  driver and helper driver source code for a given sequence.
+- `generator/symbolic/formulaDriver.hpp` — independently re-derives the
+  expected derivatives symbolically, for cross-validation against the
+  numeric AD driver.
+- `generator/symbolic/validator.h` — compares AD driver output against
+  formula driver output within tolerance.
 - `generator/configManager.h` — loads `generator/configs.txt` and handles
   the `--sequence` CLI override.
 - `generator/structures.h` — shared types (`Param`, `Tensor`, `Equation`,
   `Monomial`, AD type aliases).
 - `generator/readWrite.h` — binary (de)serialization of parameters between
   the AD driver, helper driver, and formula driver.
-- `generator/validator.h` — compares AD driver output against formula driver
-  output within tolerance.
+- `generator/utils.h` / `utils.hpp` — parameter-tree generation (one `Param`
+  per input/output per differentiation order) and the recursive
+  seed/extract routines that map tensor data into/out of the nested AD
+  types at each order.
 - `generator/user_function.h` — where you define the formula under test.
 - `include/ad/ad.h` — the tangent/adjoint AD type library.
+
+`generator/codegen/` and `generator/symbolic/` group source by role;
+`structures.h`, `utils.h`/`utils.hpp`, `readWrite.h`, `configManager.h`,
+and `user_function.h` stay flat directly under `generator/` because the
+*generated* AD/helper driver source `#include`s them unqualified and is
+compiled with `generator/` itself as its only project-local `-I` path (see
+`handleADDriverCompilation` in `cli/pipeline.cpp`) — moving one of those
+into a subfolder would break that compile.
+
+`generator/adDrivers.{h,cpp}` and `generator/adHelper.{h,cpp}` are **not**
+source files to read or edit and are not checked into git (see
+`.gitignore`) — they're `generator/codegen/generator.cpp`'s output,
+written fresh into `generator/` on whichever run needs them.

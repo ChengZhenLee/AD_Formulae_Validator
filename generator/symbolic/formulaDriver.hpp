@@ -7,6 +7,32 @@
 #include "configManager.h"
 #include "utils.h"
 
+// ============================================================================
+// SYMBOLIC FORMULA DRIVER
+//
+// This is the second, independent derivation the AD driver's output is
+// checked against (see "How it works" in the README). It starts from the
+// single equation Y = F(X) and, for each character of the AD sequence,
+// mechanically differentiates every equation derived so far — exactly the
+// way one would by hand with the chain rule:
+//
+//   - A tangent ('t') step differentiates every equation w.r.t. a new
+//     tangent direction: apply the product rule to each monomial (one new
+//     term per factor, with that factor's own derivative substituted in),
+//     then the sum rule collects the new terms into a new equation.
+//     Implemented in tangentMode().
+//   - An adjoint ('a') step differentiates every equation w.r.t. one of its
+//     *outputs*, propagating sensitivities backward through every monomial
+//     that output appears in. Implemented in adjointMode().
+//
+// Every Param carries Einstein-summation index labels (see structures.h),
+// so "substitute this factor's derivative and multiply the rest together"
+// is literally a tensor contraction over shared index names
+// (evaluateMonomialSequence / contractByMetadata) — no calculus-specific
+// code is needed beyond deciding *which* factor to differentiate and what
+// its derivative Param is named.
+// ============================================================================
+
 
 // Renders a single monomial (a chain of contracted parameters) as "A * B * C".
 template<typename T>
@@ -89,19 +115,27 @@ std::vector<Param<T>> runFormulaDriver(std::vector<Param<T>> parameters, const s
 }
 
 
+// Drives the full symbolic derivation for `sequence`: seeds the base
+// equation Y = F*X (F standing in symbolically for "the Jacobian of f",
+// dF/dX), then walks the sequence one character at a time — left-to-right,
+// i.e. order 1 (innermost/first-applied) to order sequence.length()
+// (outermost/last-applied), matching ConfigManager::getSequence()'s
+// reversal — appending one differentiated equation set per order to
+// `equations`. On return, `equations` holds every intermediate and final
+// symbolic derivative equation for the whole sequence, in derivation order.
 template<typename T>
 void formulaDriver(
-    std::string sequence, 
-    std::deque<Equation<T>>& equations, 
-    std::deque<Param<T>>& derivatives, 
-    std::deque<Param<T>>& inputs, 
-    std::deque<Param<T>>& outputs) 
+    std::string sequence,
+    std::deque<Equation<T>>& equations,
+    std::deque<Param<T>>& derivatives,
+    std::deque<Param<T>>& inputs,
+    std::deque<Param<T>>& outputs)
 {
 
     // Initialize base primal equations and execute initial evaluation
     Param<T>& X = findParamByName("X", inputs);
     Param<T>& Y = findParamByName("Y", outputs);
-    Param<T> F = Param<T>({}, {}, "F", ParamRole::Input, {"j", "i"}); 
+    Param<T> F = Param<T>({}, {}, "F", ParamRole::Input, {"j", "i"});
 
     // Calculate primal Y via the primal function
     f(X.tensor.data, Y.tensor.data);
@@ -122,11 +156,31 @@ void formulaDriver(
     }
 }
 
+// Applies one tangent ("forward mode") differentiation step: differentiates
+// every existing equation w.r.t. the tangent direction introduced at this
+// `order`, producing one new equation per existing one (LEFTSIDE_<order> =
+// d(LEFTSIDE)/dv_<order>).
+//
+// Standard product rule, applied monomial-by-monomial, factor-by-factor:
+// for a monomial A*B*C, the tangent is dA*B*C + A*dB*C + A*B*dC, so for
+// each factor in turn this differentiates just that one factor (looks up
+// its order-suffixed Param — from `derivatives` if it's an F node, from
+// `inputs` otherwise) and leaves the rest of the chain untouched. The bare
+// "X" placeholder factor is skipped everywhere: it exists only to mark
+// "F is a function of X" in the base equation and is never itself
+// differentiated. When the factor being differentiated is F itself (rather
+// than an already-differentiated F_..), the chain rule dF(X)/dv = dF/dX *
+// dX/dv requires multiplying in X's own new tangent seed
+// (`insertPrimalAfterDerived`) — F's derivative alone is only the Jacobian,
+// not yet contracted with the direction being differentiated along.
+// Each resulting term is evaluated via tensor contraction
+// (evaluateMonomialSequence) and accumulated into the new equation's tensor
+// value as well as recorded symbolically in `newEquation.rightSide`.
 template<typename T>
 void tangentMode(
-    size_t order, 
-    std::deque<Equation<T>>& equations, 
-    std::deque<Param<T>>& inputs, 
+    size_t order,
+    std::deque<Equation<T>>& equations,
+    std::deque<Param<T>>& inputs,
     std::deque<Param<T>>& outputs,
     std::deque<Param<T>>& derivatives)
 {
@@ -185,7 +239,7 @@ void tangentMode(
                 newEquation.rightSide.push_back(Monomial<T>(paramChainCopy));
             }
         }
-        
+
         targetParam.tensor = equationSum;
         newEquations.push_back(newEquation);
     }
@@ -195,19 +249,46 @@ void tangentMode(
     }
 }
 
+// Applies one adjoint ("reverse mode") differentiation step: given an
+// incoming sensitivity seed on each equation's left side (order-suffixed
+// output Param, e.g. "Y_<order>"), propagates it backward through every
+// monomial to accumulate the sensitivity onto every variable that
+// contributed to that equation — i.e. a vector-Jacobian product.
+//
+// One new equation is produced per distinct non-F factor name seen across
+// all current monomials (`newOutputNames`), suffixed with this `order`:
+//   - CASE 1 (targetName == "X_<order>"): the "real" backward accumulation
+//     onto the primal input. For every equation and every monomial, replace
+//     each F factor with its next-order derivative (continuing the Jacobian
+//     chain one level further via `derivatives`) and each non-F factor with
+//     its current value (via `inputs`), then contract the whole chain
+//     against that equation's own incoming adjoint seed
+//     ("<leftSide>_<order>"). Summing this over every equation/monomial is
+//     exactly sum-over-paths reverse accumulation: dL/dX = sum_paths
+//     seed^T * (chain of partial Jacobians along that path).
+//   - CASE 2 (any other target, e.g. "Y_<order>" or an intermediate
+//     derivative's companion): builds the equation for that one variable's
+//     sensitivity by finding monomials where the un-suffixed target name
+//     appears as a factor, substituting that factor's own order-suffixed
+//     derivative in place (from `derivatives` if it's an F node, `inputs`
+//     otherwise) and leaving the remaining factors of the monomial as-is —
+//     the same "substitute one factor, keep the rest" pattern tangentMode
+//     uses, but seeded from the adjoint side instead of a tangent direction.
 template<typename T>
 void adjointMode(
-    size_t order, 
-    std::deque<Equation<T>>& equations, 
+    size_t order,
+    std::deque<Equation<T>>& equations,
     std::deque<Param<T>>& inputs,
     std::deque<Param<T>>& outputs,
     std::deque<Param<T>>& derivatives
-) 
+)
 {
     std::deque<Equation<T>> newEquations = {};
     std::deque<std::string> newOutputNames = {};
     std::unordered_set<std::string> seen = {};
 
+    // Collect every distinct non-F factor name used across the current
+    // equation set — each one needs its own order-suffixed adjoint equation.
     for (const Equation<T>& e : equations) {
         for (const Monomial<T>& m : e.rightSide) {
             for (const Param<T>& p : m.parameters) {
@@ -338,9 +419,16 @@ void adjointMode(
 //    via equal active orders ergo equal indices
 // 2. Realign the final product to the expected shape by permutating the indices
 
+// Evaluates one monomial (a chain of Params to be multiplied together) as a
+// single tensor: repeatedly picks a Param from `collectedParams` that
+// shares an index name with the tensor accumulated so far (falling back to
+// the front of the queue if none shares an index — an outer/tensor product)
+// and contracts it in via contractByMetadata, until the queue is empty.
+// Finally permutes the result's axes to match `targetIndexNames` so it
+// lines up with the equation's left-hand side (see alignToTarget).
 template <typename T>
 static Tensor<T> evaluateMonomialSequence(
-    std::deque<Param<T>>& collectedParams, 
+    std::deque<Param<T>>& collectedParams,
     const std::deque<std::string>& targetIndexNames // Changed from std::vector to std::deque
 ) {
     if (collectedParams.empty()) {
@@ -369,32 +457,15 @@ static Tensor<T> evaluateMonomialSequence(
             if (foundMatch) break; 
         }
 
-        // ------------------- DEBUG
-        Param<T> rightParam;
-
         if (foundMatch) {
-            // -------------------
-            rightParam = *targetIt;
-            //---------------------
-
             Param<T> matchingParam = *targetIt;
             collectedParams.erase(targetIt);
             stepResult = contractByMetadata(runningParam, matchingParam, nextIndexNames);
         } else {
-            //-----------------------------------
-            rightParam = collectedParams.front();
-            //-----------------------------------
-
             Param<T> standaloneParam = collectedParams.front();
             collectedParams.pop_front();
             stepResult = contractByMetadata(runningParam, standaloneParam, nextIndexNames);
         }
-
-        // Execute the contraction
-        stepResult = contractByMetadata(runningParam, rightParam, nextIndexNames);
-
-        step++;
-
 
         runningParam.tensor = stepResult;
         runningParam.indexNames = nextIndexNames;
@@ -403,9 +474,14 @@ static Tensor<T> evaluateMonomialSequence(
     return alignToTarget(runningParam.tensor, runningParam.indexNames, targetIndexNames);
 }
 
+// Contracts two Params by matching their index-name labels (Einstein
+// summation): every index name that appears in both `paramA` and `paramB`
+// is treated as a shared/summed axis; every other axis is kept, `paramA`'s
+// first then `paramB`'s, and reported back via `outIndexNames` so callers
+// can track what indices the result now carries.
 template<typename T>
 static Tensor<T> contractByMetadata(
-    const Param<T>& paramA, 
+    const Param<T>& paramA,
     const Param<T>& paramB,
     std::deque<std::string>& outIndexNames
 ) {
@@ -443,6 +519,10 @@ static Tensor<T> contractByMetadata(
     return Tensor<T>::productGeneralContraction(paramA.tensor, paramB.tensor, axesA, axesB);
 }
 
+// Permutes `sourceTensor`'s axes so its index-name order matches
+// `targetIndexNames` exactly (a no-op if it already does). Needed because
+// contraction order determines the result's axis order, which won't
+// generally match the left-hand-side Param's declared index order.
 template<typename T>
 static Tensor<T> alignToTarget(
     const Tensor<T>& sourceTensor,

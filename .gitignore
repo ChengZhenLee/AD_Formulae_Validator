@@ -3,3 +3,19 @@ build/
 .github
 .claude
 .vscode
+
+# Runtime-generated files written by ADValidator into generator/ - all
+# regenerated fresh from generator/codegen/generator.cpp on every run that
+# needs them (see cli/pipeline.cpp). Not source; never hand-edit these.
+generator/adDrivers.h
+generator/adDrivers.cpp
+generator/adDrivers.exe
+generator/adDrivers_build.log
+generator/adHelper.h
+generator/adHelper.cpp
+generator/adHelper.exe
+generator/adHelper_build.log
+generator/*.bin
+generator/equations.txt
+generator/validation_results.txt
+generator/.pipeline_cache

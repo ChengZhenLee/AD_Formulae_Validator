@@ -34,7 +34,13 @@ bool validateParameters(std::vector<Param<T>> formulaResults,
 }
 
 
-// Returns a report string 
+// Elementwise comparison of two tensors of matching name (one produced by
+// the numeric AD driver, one by the symbolic formula driver). Returns
+// "valid" iff shapes and every element (within `tolerance`) match;
+// otherwise a short string identifying what didn't. Tolerance is
+// sqrt(machine epsilon) for T, a standard heuristic for numerical
+// AD/finite-difference-scale comparisons that tolerates normal
+// floating-point rounding without hiding a genuine mismatch.
 template<typename T>
 std::string compareTensors(Tensor<T> a, Tensor<T> b, T tolerance) {
     // Compare shape

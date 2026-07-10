@@ -10,6 +10,14 @@
 #include <nlohmann/json.hpp>
 #include "ad.h"
 
+// Shared data model for the symbolic ("formula driver") side of the
+// validator. A differentiated equation system is represented as:
+//   Equation   := leftSide (a Param) = sum of Monomial
+//   Monomial   := product of Param, contracted over shared index names
+//   Param      := a named tensor with Einstein-summation index labels
+// This mirrors how the chain rule is applied on paper: each differentiation
+// order adds one more contracted index to every term. See
+// generator/symbolic/formulaDriver.hpp for how these are built up order-by-order.
 
 // AD tangent type
 template<typename T, int size>
@@ -28,6 +36,9 @@ template<typename T>
 using Y_t=std::deque<T>;
 
 
+// A dense, row-major, arbitrary-rank tensor: flat `data` plus `shape`
+// (extent per axis) and `strides` (row-major offset per axis) needed to
+// convert multi-index coordinates to a flat offset into `data`.
 template<typename T>
 struct Tensor {
     std::deque<T> data;
@@ -69,7 +80,13 @@ struct Tensor {
         return result;
     }
 
-    // General contraction logic
+    // Einstein-summation contraction of two tensors along paired axes:
+    // contractA[k] of `a` is summed against contractB[k] of `b` for every k.
+    // The result's axes are the uncontracted axes of `a` (in order) followed
+    // by the uncontracted axes of `b` (in order) — e.g. contracting a
+    // rank-2 `a` and rank-1 `b` over one axis each reproduces a matrix-vector
+    // product. This is the primitive that `contractByMetadata` in
+    // formulaDriver.hpp builds on to multiply two Params that share an index.
     static Tensor<T> productGeneralContraction(const Tensor& a, const Tensor& b, const std::vector<size_t>& contractA, const std::vector<size_t>& contractB) {
         if (contractA.size() != contractB.size()) {
             throw std::invalid_argument("contractA and contractB must have the same length");
@@ -205,7 +222,27 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ParamRole, {
     {ParamRole::Output, "OUTPUT"},
 });
 
-// Input parameters for AD and Formula functions
+// A named node in the differentiation tree: the primal X/Y, a derivative
+// seed, or a derived quantity, together with the tensor data and the
+// Einstein-summation index labels needed to contract it against other
+// Params in a Monomial.
+//
+// Names encode the derivative path they were created by, e.g. "X_2_1" reads
+// as "X differentiated at order 1, then again at order 2" (see
+// generateParameters() in utils.hpp, which builds these names by appending
+// "_<order>" one order at a time). `activeOrders` is parsed straight out of
+// that name (every "_<n>" suffix) and `highestOrder` is its max — together
+// they say which differentiation orders this Param actually depends on,
+// which formulaDriver.hpp uses to decide whether a Param belongs in a given
+// order's equation. Symbolic derivative results carry the name prefix "F"
+// instead of "Y" (see generateDerivativeSeeds()) purely to avoid colliding
+// with the true primal Y = f(X).
+//
+// `indexNames` are the Einstein-summation labels for each tensor axis, in
+// the same order as `tensor.shape`: "i" for the input axis, "j" for the
+// output axis, "v_k"/"u_k" for the tangent/adjoint seed axis introduced at
+// order k. Two Params can be contracted (see contractByMetadata in
+// formulaDriver.hpp) wherever their indexNames intersect.
 template<typename T>
 struct Param {
     Tensor<T> tensor;
@@ -220,10 +257,10 @@ struct Param {
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(Param, tensor, name, role, activeOrders, orderedShape, highestOrder, indexNames)
 
     Param() = default;
-    
-    Param(std::map<size_t, size_t> oShape, std::deque<size_t> shape, std::string inputName, ParamRole inputRole, std::deque<std::string> indexNames) 
+
+    Param(std::map<size_t, size_t> oShape, std::deque<size_t> shape, std::string inputName, ParamRole inputRole, std::deque<std::string> indexNames)
         : orderedShape(oShape), tensor(shape), name(inputName), role(inputRole), indexNames(indexNames) {
-        
+
         std::stringstream ss(inputName);
         std::string segment;
 
@@ -235,27 +272,36 @@ struct Param {
                 activeOrders.push_back(order);
 
                 // Set the highest order
-                if (order > highestOrder) { 
-                    highestOrder = order; 
+                if (order > highestOrder) {
+                    highestOrder = order;
                 }
             }
         }
     }
 
-    bool isSeed() { 
-        return role == ParamRole::Input; 
+    bool isSeed() {
+        return role == ParamRole::Input;
     }
 
+    // Whether this Param's name has a "_<order>" suffix for the given order,
+    // i.e. whether it was produced by (or seeds) that differentiation step.
     bool isActive(int order) const {
         return std::find(activeOrders.begin(), activeOrders.end(), order) != activeOrders.end();
     }
 
+    // Extent of the axis introduced at the given differentiation order
+    // (the tangent width V or adjoint width U configured for that order).
     size_t getShapeAt(int order) const {
         return orderedShape.at(order) ? orderedShape.at(order) : 0;
     }
 };
 
 
+// One chain-rule term: a product of Params, implicitly contracted over
+// whatever index names they share (see evaluateMonomialSequence in
+// formulaDriver.hpp). E.g. the chain rule term dF/dX * dX/dv for a tangent
+// step is represented as Monomial{F_param, X_param}, contracted over the
+// input index "i" that both share.
 template<typename T>
 struct Monomial {
     std::deque<Param<T>> parameters = {};
@@ -264,6 +310,9 @@ struct Monomial {
 };
 
 
+// One derived equation: leftSide = sum of rightSide monomials. The full
+// symbolic derivation for a sequence is a std::deque<Equation<T>>, one
+// entry per Param produced so far, accumulated in formulaDriver().
 template<typename T>
 struct Equation {
     Param<T> leftSide;
