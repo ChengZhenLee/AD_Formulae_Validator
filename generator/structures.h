@@ -224,25 +224,20 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ParamRole, {
 
 // A named node in the differentiation tree: the primal X/Y, a derivative
 // seed, or a derived quantity, together with the tensor data and the
-// Einstein-summation index labels needed to contract it against other
-// Params in a Monomial.
+// Einstein-summation index labels.
 //
-// Names encode the derivative path they were created by, e.g. "X_2_1" reads
-// as "X differentiated at order 1, then again at order 2" (see
-// generateParameters() in utils.hpp, which builds these names by appending
-// "_<order>" one order at a time). `activeOrders` is parsed straight out of
-// that name (every "_<n>" suffix) and `highestOrder` is its max — together
-// they say which differentiation orders this Param actually depends on,
-// which formulaDriver.hpp uses to decide whether a Param belongs in a given
-// order's equation. Symbolic derivative results carry the name prefix "F"
+// Names encode the derivative path they were created by, e.g. 
+// "X_1_2" reads as "X differentiated at order 1, then again at order 2".
+// `activeOrders` is parsed straight out of that name 
+// (every "_<n>" suffix) and `highestOrder` is its max. 
+// Symbolic derivative results carry the name prefix "F"
 // instead of "Y" (see generateDerivativeSeeds()) purely to avoid colliding
 // with the true primal Y = f(X).
 //
 // `indexNames` are the Einstein-summation labels for each tensor axis, in
 // the same order as `tensor.shape`: "i" for the input axis, "j" for the
 // output axis, "v_k"/"u_k" for the tangent/adjoint seed axis introduced at
-// order k. Two Params can be contracted (see contractByMetadata in
-// formulaDriver.hpp) wherever their indexNames intersect.
+// order k.
 template<typename T>
 struct Param {
     Tensor<T> tensor;
