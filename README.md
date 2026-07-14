@@ -23,8 +23,11 @@ independent code paths, and checks that they agree within tolerance:
    composed outermost-to-innermost). `f()` is then run *once*, unmodified,
    through this nested type. Each layer seeds its own tangent directions or
    records/interprets its own adjoint tape, so the nested type mechanically
-   produces every derivative of the requested order — this is standard
-   operator-overloading AD, and it is the thing being validated.
+   produces every derivative of the requested order via standard
+   operator-overloading AD. `include/ad/ad.h` is treated as a trusted,
+   already-correct implementation — this numeric result is the baseline the
+   other derivation is checked against, not something being validated
+   itself.
 2. **Symbolic formula driver** (`generator/symbolic/formulaDriver.hpp`). This is a
    second, independent implementation that never touches the AD library. It
    starts from the base equation `y = f(x)` and applies the multivariate
@@ -41,10 +44,47 @@ independent code paths, and checks that they agree within tolerance:
 Both drivers are run on the *same* random seed values (`generator/parameters.bin`,
 `generator/derivatives_seeds.bin`), and `generator/symbolic/validator.h` compares
 their output tensors element-by-element. Because the two derivations share
-no code, agreement is strong evidence that the operator-overloading AD
-library computes the derivative the chain rule says it should for the given
-formula and sequence — which is the property a hand-written AD formula
-needs for a paper to rely on it.
+no code, agreement is strong evidence that the symbolic formula driver — the
+hand-written chain-rule derivation, which is what's actually being validated
+— computes the same derivative as the trusted numeric AD driver for the
+given formula and sequence. That agreement is the property a hand-written
+AD formula needs for a paper to rely on it.
+
+## The AD library (`include/ad/ad.h`)
+
+`include/ad/ad.h` is a trusted, assumed-correct AD implementation — not the
+thing being validated. It's the foundation the numeric AD driver is built
+from, and that driver's output is the baseline `generator/symbolic/formulaDriver.hpp`'s
+independent derivation is checked against. It provides two composable
+derivative types:
+
+- **`tangent_t<T,n_t>`** — forward (tangent) mode. Wraps a primal value `v`
+  together with a directional-derivative vector `d` of size `n_t`. Every
+  overloaded operator (`+ - * /`, unary `-`, and the special functions
+  below) updates `v` and `d` together in one pass, using the exact
+  elementary differentiation rule for that operator.
+- **`adjoint_t<T,n_a>`** — reverse (adjoint) mode. Wraps a primal value `v`
+  and a tape address. Operators don't compute a derivative immediately;
+  instead each records its local partial derivatives onto a static tape as the primal function runs forward once.
+  `tape::interpret()` then walks the tape backward, accumulating adjoints
+  via the chain rule.
+
+## Validation tolerance
+
+`generator/symbolic/validator.h` compares the two drivers' tensors
+element-by-element using an absolute tolerance of **`sqrt(machine epsilon)`
+for the numeric type `T`** (`std::pow(std::numeric_limits<T>::epsilon(),
+0.5)` in `compareTensors`) — about `1.49e-8` for `double`.
+
+This is deliberately not a large tolerance: `ad.h`'s derivative rules are
+exact analytic derivatives (no finite-difference step-size truncation is
+involved anywhere), so both drivers are precise to machine epsilon and the
+only disagreement expected between two independently-coded, correct
+derivations is accumulated floating-point rounding. `sqrt(epsilon)` is the
+standard heuristic band for that kind of comparison — wide enough to absorb
+normal rounding and cancellation, but tight enough that a genuine formula
+error (which shows up as an O(1) or wrong-term discrepancy, not an
+O(sqrt(epsilon)) one) still fails validation.
 
 ## Requirements
 
@@ -52,8 +92,54 @@ needs for a paper to rely on it.
   Clang's `g++` on Linux/macOS). The tool compiles generated code at runtime,
   so this is a hard requirement, not just a build-time one — it checks for
   `g++` at startup and fails fast with a clear message if it's missing.
-- CMake (3.10+) and a C++20 compiler, only if you're building the tool
+- CMake (3.14+) and a C++20 compiler, only if you're building the tool
   itself from source.
+
+## Building from source
+
+```
+cmake -S . -B build
+cmake --build build
+```
+
+Any CMake generator works (Ninja, Unix Makefiles, Visual Studio, ...) as
+long as it resolves to the C++20 `g++` from [Requirements](#requirements).
+This produces `build/ADValidator.exe` (or `build/ADValidator` on
+Linux/macOS) plus the `build/dist/` redistributable folder described in
+[Distributing the tool](#distributing-the-tool). No install step is
+needed — run the executable directly from either location.
+
+### Running the unit tests
+
+`tests/*.cpp` are [GoogleTest](https://github.com/google/googletest) unit
+tests, fetched automatically at configure time (no manual install) and
+compiled into a `generator_tests` executable linked against the same
+`generator_lib` as `ADValidator`, so tests can `#include` real headers from
+`generator/` and `include/` directly. Disable with `-DBUILD_TESTS=OFF` if
+you only want `ADValidator` itself.
+
+If you added or renamed a file under `tests/`, re-run the `cmake -S . -B build`
+configure step first.
+
+```
+cmake -S . -B build
+cmake --build build --target generator_tests
+ctest --test-dir build --output-on-failure
+```
+
+To run a single test or suite instead of everything, either filter `ctest`
+by test name (`-R` is a regex match against the names `ctest` discovered):
+
+```
+ctest --test-dir build -R ParamTest --output-on-failure
+```
+
+or invoke the built `generator_tests` executable directly with GoogleTest's
+own filter flag, which is more convenient when iterating on one test:
+
+```
+build/generator_tests.exe --gtest_filter=ParamTest.IsActiveChecksOrderMembership
+```
 
 ## Quick start
 
@@ -137,11 +223,40 @@ before. Every other line in `configs.txt` is left untouched.
 All written under the `generator/` folder next to the executable:
 
 - `generator/validation_results.txt` — per-parameter pass/fail breakdown
-  (written on every run, most useful when the result is `INVALID`).
+  (written on every run, most useful when the result is `INVALID`). Each
+  line is `PARAMETER: valid` or `PARAMETER: <reason>` for one of the
+  failure strings `compareTensors` can return (`Incorrect tensor shape`,
+  `Incorrect tensor data size`, `Incorrect data values`). For the default
+  Lighthouse function with `--sequence=ta`:
+  ```
+  X: valid
+  Y: valid
+  X_1: valid
+  Y_1: valid
+  X_2: valid
+  Y_2: valid
+  X_1_2: valid
+  Y_1_2: valid
+  ```
+  `X`/`Y` are the primal input/output; `_1` and `_2` are the derivatives
+  introduced by the first- and second-applied sequence characters
+  respectively; `X_1_2`/`Y_1_2` are the mixed (cross) derivative.
 - `generator/equations.txt` — every symbolic equation the formula driver
   derived for the current sequence, one per line as
   `LEFTSIDE = monomial + monomial + ...`, so you can inspect exactly what
-  was derived rather than only the final verdict.
+  was derived rather than only the final verdict. Same run as above:
+  ```
+  y = f(X)
+  X_1 = F_1 * Y_1
+  Y_2 = F_2 * X_2
+  X_1_2 = F_1_2 * X_2 * Y_1 + F_1 * Y_1_2
+  ```
+  Each line is a tensor-contraction statement in the Einstein-summation
+  sense described in [How it works](#how-it-works): `F_1`/`F_2` are the
+  Jacobians of `f` introduced at each order, and the right-hand side is the
+  chain/product rule expansion the formula driver applied at that step —
+  this is the independent derivation being checked against the numeric AD
+  driver's output.
 - `generator/*_build.log` — full compiler output for the generated AD/helper
   drivers, kept even on success; only surfaced to the console on failure.
 

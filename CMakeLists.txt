@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(ADValidator)
 
 # Use C++ 20
@@ -8,22 +8,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Add the executable with all source files
 option(BUILD_TESTS "Build unit tests" ON)
 
-# Build a generator library from the generator folder. Recursive because
-# generator/ groups its source into subfolders by role (generator/codegen,
-# generator/symbolic) - see the "Project layout" section of the README.
+# GoogleTest
+if(BUILD_TESTS)
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.15.2
+    )
+    FetchContent_MakeAvailable(googletest)
+endif()
+
+# Build a generator library from the generator folder.
 file(GLOB_RECURSE GENERATOR_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/generator/*.cpp"
 )
-# Exclude adDrivers.cpp/adHelper.cpp: not source, but ADValidator's own
-# runtime-generated output (each has its own main()), left sitting flat in
-# generator/ from a previous run. Without this, re-running cmake after
-# running ADValidator once would sweep them into this library too.
+# Exclude adDrivers.cpp/adHelper.cpp
 list(FILTER GENERATOR_SRCS EXCLUDE REGEX "/(adDrivers|adHelper)\\.cpp$")
 add_library(generator_lib STATIC ${GENERATOR_SRCS})
 
-# Copy the generator and include folders into the build directory. At
-# runtime ADValidator resolves both as siblings of its own executable (see
-# getExecutableDir() in main.cpp), so this mirrors the layout it expects.
+# Copy the generator and include folders into the build directory.
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/generator DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -34,8 +38,7 @@ target_include_directories(generator_lib PUBLIC
 )
 
 # Main executable: main.cpp is just argument parsing + stage orchestration;
-# the pipeline stages and all terminal-output formatting live in cli/ (see
-# cli/pipeline.* and cli/console.*).
+# the pipeline stages and all terminal-output formatting live in cli/.
 add_executable(ADValidator
     main.cpp
     cli/console.cpp
@@ -43,24 +46,10 @@ add_executable(ADValidator
 )
 target_link_libraries(ADValidator PRIVATE generator_lib)
 
-# So `#include "generator/..."` and `#include "cli/..."` resolve the same
-# way from every translation unit above, regardless of which subdirectory
-# it's compiled from.
 target_include_directories(ADValidator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Assemble a self-contained redistributable folder: the executable plus the
-# resource files it needs (and its full generator/ source, for a peer who
-# wants to read it, not just run it). Hand peers this dist/ folder instead
-# of the whole build tree.
-#
-# generator/ is mirrored wholesale with copy_directory (like include/
-# already is) rather than an explicit file list, so this never needs
-# hand-updating again as source moves between generator/'s subfolders. The
-# explicit removals right after strip out ADValidator's own runtime output
-# (adDrivers.*/adHelper.*/*.bin/logs/etc - see .gitignore for the full set)
-# in case a previous run left any sitting in the source tree being copied
-# from; -f suppresses the "file doesn't exist" error since normally none of
-# them do.
+# resource files it needs.
 set(DIST_DIR ${CMAKE_CURRENT_BINARY_DIR}/dist)
 add_custom_command(TARGET ADValidator POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory ${DIST_DIR}
@@ -87,3 +76,16 @@ add_custom_command(TARGET ADValidator POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/include/Eigen ${DIST_DIR}/include/Eigen
     COMMENT "Assembling redistributable package in ${DIST_DIR}"
 )
+
+# Unit tests
+if(BUILD_TESTS)
+    enable_testing()
+
+    file(GLOB_RECURSE TEST_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+    add_executable(generator_tests ${TEST_SRCS})
+    target_link_libraries(generator_tests PRIVATE generator_lib GTest::gtest_main)
+    target_include_directories(generator_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+    include(GoogleTest)
+    gtest_discover_tests(generator_tests)
+endif()

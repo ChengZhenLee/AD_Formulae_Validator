@@ -22,5 +22,53 @@
   "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include/ad\" -g -std=gnu++20 -o CMakeFiles\\ADValidator.dir\\cli\\pipeline.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\cli\\pipeline.cpp\"",
   "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/cli/pipeline.cpp",
   "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/CMakeFiles/ADValidator.dir/cli/pipeline.cpp.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include/ad\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=gnu++20 -o CMakeFiles\\generator_tests.dir\\tests\\formula_driver_test.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\tests\\formula_driver_test.cpp\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/tests/formula_driver_test.cpp",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/CMakeFiles/generator_tests.dir/tests/formula_driver_test.cpp.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include/ad\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=gnu++20 -o CMakeFiles\\generator_tests.dir\\tests\\param_test.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\tests\\param_test.cpp\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/tests/param_test.cpp",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/CMakeFiles/generator_tests.dir/tests/param_test.cpp.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include/ad\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=gnu++20 -o CMakeFiles\\generator_tests.dir\\tests\\tensor_test.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\tests\\tensor_test.cpp\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/tests/tensor_test.cpp",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/CMakeFiles/generator_tests.dir/tests/tensor_test.cpp.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/generator\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/include/ad\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=gnu++20 -o CMakeFiles\\generator_tests.dir\\tests\\validator_test.cpp.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\tests\\validator_test.cpp\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/tests/validator_test.cpp",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/CMakeFiles/generator_tests.dir/tests/validator_test.cpp.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googlemock/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googlemock\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o _deps\\googletest-build\\googlemock\\CMakeFiles\\gmock.dir\\src\\gmock-all.cc.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\build\\_deps\\googletest-src\\googlemock\\src\\gmock-all.cc\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googlemock/src/gmock-all.cc",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googlemock/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googlemock\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o _deps\\googletest-build\\googlemock\\CMakeFiles\\gmock_main.dir\\src\\gmock_main.cc.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\build\\_deps\\googletest-src\\googlemock\\src\\gmock_main.cc\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googlemock/src/gmock_main.cc",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -I\"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o _deps\\googletest-build\\googletest\\CMakeFiles\\gtest.dir\\src\\gtest-all.cc.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\build\\_deps\\googletest-src\\googletest\\src\\gtest-all.cc\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/src/gtest-all.cc",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.obj"
+},
+{
+  "directory": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build",
+  "command": "C:\\Users\\zhens\\Downloads\\w64devkit\\bin\\ccache-g++.exe -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/include\" -isystem \"C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest\" -g -std=c++20 -Wall -Wshadow -Wundef -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o _deps\\googletest-build\\googletest\\CMakeFiles\\gtest_main.dir\\src\\gtest_main.cc.obj -c \"C:\\Users\\zhens\\OneDrive\\Desktop\\AD Validator\\AD_Formulae_Validator\\build\\_deps\\googletest-src\\googletest\\src\\gtest_main.cc\"",
+  "file": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-src/googletest/src/gtest_main.cc",
+  "output": "C:/Users/zhens/OneDrive/Desktop/AD Validator/AD_Formulae_Validator/build/_deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.obj"
 }
 ]

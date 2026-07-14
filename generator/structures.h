@@ -292,7 +292,7 @@ struct Param {
     // Extent of the axis introduced at the given differentiation order
     // (the tangent width V or adjoint width U configured for that order).
     size_t getShapeAt(int order) const {
-        return orderedShape.at(order) ? orderedShape.at(order) : 0;
+        return orderedShape.at(order);
     }
 };
 

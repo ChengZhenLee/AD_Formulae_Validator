@@ -429,7 +429,7 @@ void adjointMode(
 template <typename T>
 static Tensor<T> evaluateMonomialSequence(
     std::deque<Param<T>>& collectedParams,
-    const std::deque<std::string>& targetIndexNames // Changed from std::vector to std::deque
+    const std::deque<std::string>& targetIndexNames
 ) {
     if (collectedParams.empty()) {
         throw std::invalid_argument("Monomial evaluation failed: Parameter pool is empty.");
@@ -437,9 +437,6 @@ static Tensor<T> evaluateMonomialSequence(
 
     Param<T> runningParam = collectedParams.front();
     collectedParams.pop_front();
-
-    // DEBUG PARAMETER --------------
-    int step = 1;
 
     while (!collectedParams.empty()) {
         bool foundMatch = false;
@@ -478,7 +475,10 @@ static Tensor<T> evaluateMonomialSequence(
 // summation): every index name that appears in both `paramA` and `paramB`
 // is treated as a shared/summed axis; every other axis is kept, `paramA`'s
 // first then `paramB`'s, and reported back via `outIndexNames` so callers
-// can track what indices the result now carries.
+// can track what indices the result now carries. Throws std::invalid_argument
+// if `paramA` and `paramB` share no index names at all — this is a pure
+// contraction helper, not an outer-product one, so there's nothing to
+// contract over and no sane result to return.
 template<typename T>
 static Tensor<T> contractByMetadata(
     const Param<T>& paramA,
@@ -494,13 +494,19 @@ static Tensor<T> contractByMetadata(
     // Also skip over indices that have been seen before (e.g. there are multiple 'i')
     for (size_t posA = 0; posA < paramA.indexNames.size(); ++posA) {
         for (size_t posB = 0; posB < paramB.indexNames.size(); ++posB) {
-            if (paramA.indexNames[posA] == paramB.indexNames[posB] && 
+            if (paramA.indexNames[posA] == paramB.indexNames[posB] &&
                 std::find(seen.begin(), seen.end(), paramA.indexNames[posA]) == seen.end()) {
                 seen.push_back(paramA.indexNames[posA]);
                 axesA.push_back(posA);
                 axesB.push_back(posB);
             }
         }
+    }
+
+    if (axesA.empty()) {
+        throw std::invalid_argument(
+            "contractByMetadata: '" + paramA.name + "' and '" + paramB.name +
+            "' share no index names to contract over");
     }
 
     // Determine the lingering uncontracted index names layout
