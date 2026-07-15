@@ -85,8 +85,7 @@ struct Tensor {
     // The result's axes are the uncontracted axes of `a` (in order) followed
     // by the uncontracted axes of `b` (in order) — e.g. contracting a
     // rank-2 `a` and rank-1 `b` over one axis each reproduces a matrix-vector
-    // product. This is the primitive that `contractByMetadata` in
-    // formulaDriver.hpp builds on to multiply two Params that share an index.
+    // product.
     static Tensor<T> productGeneralContraction(const Tensor& a, const Tensor& b, const std::vector<size_t>& contractA, const std::vector<size_t>& contractB) {
         if (contractA.size() != contractB.size()) {
             throw std::invalid_argument("contractA and contractB must have the same length");

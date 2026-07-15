@@ -164,9 +164,7 @@ std::vector<Param<T>> generateRandomSeeds(std::string sequence, const X_t<T>& x)
 // resulting Y_k outputs are renamed to F_k so runFormulaDriver/getDerivatives
 // can find them as the ground-truth values for the symbolic "F" (dF/dX)
 // placeholders that formulaDriver.hpp's monomials reference — i.e. these
-// are the elementary partials the chain rule composes; validating the
-// requested sequence checks that composition, not these values themselves
-// (they come from ordinary, well-established forward-mode AD).
+// are the elementary partials the chain rule composes.
 template<typename T>
 std::vector<Param<T>> generateDerivativeSeeds(std::string sequence, const X_t<T>& x) {
     size_t order = sequence.length();

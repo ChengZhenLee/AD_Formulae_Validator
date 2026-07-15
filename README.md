@@ -357,3 +357,9 @@ into a subfolder would break that compile.
 source files to read or edit and are not checked into git (see
 `.gitignore`) — they're `generator/codegen/generator.cpp`'s output,
 written fresh into `generator/` on whichever run needs them.
+
+## Research context
+
+This tool was built to support the correctness claims made in an
+accompanying research paper: 
+> Naumann, U. (2026) Nested Algorithmic Differentiation Revisited

@@ -54,7 +54,7 @@ std::string monomialToString(const Monomial<T>& m) {
 }
 
 // Writes every equation accumulated during the symbolic derivation as
-// "LEFTSIDE = monomial + monomial + ...", one per line, so a peer can inspect
+// "LEFTSIDE = monomial + monomial + ...", one per line, so one can inspect
 // exactly which terms the formula driver derived for their sequence.
 template<typename T>
 void saveEquations(const std::deque<Equation<T>>& equations, const std::string& filename) {
@@ -476,9 +476,7 @@ static Tensor<T> evaluateMonomialSequence(
 // is treated as a shared/summed axis; every other axis is kept, `paramA`'s
 // first then `paramB`'s, and reported back via `outIndexNames` so callers
 // can track what indices the result now carries. Throws std::invalid_argument
-// if `paramA` and `paramB` share no index names at all — this is a pure
-// contraction helper, not an outer-product one, so there's nothing to
-// contract over and no sane result to return.
+// if `paramA` and `paramB` share no index names at all.
 template<typename T>
 static Tensor<T> contractByMetadata(
     const Param<T>& paramA,
